@@ -6,6 +6,11 @@ A collection of tools and utilities for Claude Code.
 
 Multi-provider launcher for Claude Code. Switch between Anthropic and alternative backends.
 
+- **Single file, zero dependencies** - one bash script, download and run, no package managers or build steps
+- **Fully transparent** - ~400 lines of readable bash, see exactly what env vars get set before `exec claude`
+- **Easily hackable** - change models or add providers by editing a few lines, no config schemas to learn
+- **No trust required** - open source, auditable in 5 minutes, no external runtime dependencies
+
 ### Usage
 
 ```bash
