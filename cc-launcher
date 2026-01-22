@@ -1,0 +1,395 @@
+#!/bin/bash
+
+# Claude Code Multi-Provider Launcher v1.0
+# Switch between Anthropic subscription/API and alternative backends
+# Usage: cc-launcher [provider] [claude-args...]
+
+set -e
+
+# Provider configurations (using regular arrays for compatibility)
+PROVIDERS_MOONSHOT="https://api.moonshot.ai/anthropic"
+PROVIDERS_ANTHROPIC="https://api.anthropic.com"
+PROVIDERS_DEEPSEEK="https://api.deepseek.com/anthropic"
+PROVIDERS_ZHIPU="https://api.z.ai/api/anthropic"
+PROVIDERS_MINIMAX="https://api.minimax.io/anthropic"
+PROVIDERS_LLAMA_SERVER="http://localhost:8080"
+
+MODELS_MOONSHOT="kimi-k2-turbo-preview"
+MODELS_ANTHROPIC="claude-sonnet-4-5"
+MODELS_DEEPSEEK="deepseek-chat"
+MODELS_DEEPSEEK_FAST="deepseek-chat"
+MODELS_ZHIPU="GLM-4.7"
+MODELS_ZHIPU_FAST="GLM-4.7-Flash"
+MODELS_MINIMAX="MiniMax-M2.1"
+MODELS_MINIMAX_FAST="MiniMax-M2.1-lightning"
+MODELS_LLAMA_SERVER="default"
+
+# Get provider URL
+get_provider_url() {
+    case $1 in
+        "moonshot") echo "$PROVIDERS_MOONSHOT" ;;
+        "anthropic") echo "$PROVIDERS_ANTHROPIC" ;;
+        "deepseek") echo "$PROVIDERS_DEEPSEEK" ;;
+        "zhipu") echo "$PROVIDERS_ZHIPU" ;;
+        "minimax") echo "$PROVIDERS_MINIMAX" ;;
+        "llama-server") echo "$PROVIDERS_LLAMA_SERVER" ;;
+    esac
+}
+
+# Get provider model
+get_provider_model() {
+    case $1 in
+        "moonshot") echo "$MODELS_MOONSHOT" ;;
+        "anthropic") echo "$MODELS_ANTHROPIC" ;;
+        "deepseek") echo "$MODELS_DEEPSEEK" ;;
+        "zhipu") echo "$MODELS_ZHIPU" ;;
+        "minimax") echo "$MODELS_MINIMAX" ;;
+        "llama-server") echo "$MODELS_LLAMA_SERVER" ;;
+    esac
+}
+
+get_provider_fast_model() {
+    case $1 in
+        "zhipu") echo "$MODELS_ZHIPU_FAST" ;;
+        "deepseek") echo "$MODELS_DEEPSEEK_FAST" ;;
+        "minimax") echo "$MODELS_MINIMAX_FAST" ;;
+        *) get_provider_model "$1" ;;
+    esac
+}
+
+# Check if environment variable exists (lazy checking)
+check_env_var() {
+    local var_name=$1
+    local provider=$2
+
+    if [[ -z "${!var_name:-}" ]]; then
+        echo "Error: $provider requires $var_name environment variable" >&2
+        echo "Please set $var_name and try again" >&2
+        exit 1
+    fi
+}
+
+# Prompt user for API key interactively
+prompt_for_api_key() {
+    local provider_name="$1"
+    if [[ -t 0 ]]; then  # Running in TTY
+        read -s -p "Enter $provider_name API key: " api_key
+        echo >&2
+        if [[ -n "$api_key" ]]; then
+            echo "$api_key"
+        else
+            echo "Error: No API key provided" >&2
+            exit 1
+        fi
+    else
+        echo "Error: No API key found and not running in TTY" >&2
+        echo "Please set the appropriate environment variable or pass API key as argument" >&2
+        exit 1
+    fi
+}
+
+# Get API key for provider (with optional inline key and prompt fallback)
+# Usage: get_api_key_with_fallback <provider> [inline_key]
+get_api_key_with_fallback() {
+    local provider="$1"
+    local inline_key="${2:-}"
+    local provider_name="$3"
+
+    # Try inline key first
+    if [[ -n "$inline_key" ]]; then
+        echo "$inline_key"
+        return
+    fi
+
+    # Try environment variables
+    case $provider in
+        "moonshot")
+            if [[ -n "${MOONSHOT_API_KEY:-}" ]]; then
+                echo "${MOONSHOT_API_KEY}"
+                return
+            elif [[ -n "${KIMI_API_KEY:-}" ]]; then
+                echo "${KIMI_API_KEY}"
+                return
+            fi
+            ;;
+        "anthropic")
+            if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+                echo "${ANTHROPIC_API_KEY}"
+                return
+            fi
+            # For Anthropic API mode, return 1 to let main() handle the error
+            return 1
+            ;;
+        "deepseek")
+            if [[ -n "${DEEPSEEK_API_KEY:-}" ]]; then
+                echo "${DEEPSEEK_API_KEY}"
+                return
+            fi
+            ;;
+        "zhipu")
+            if [[ -n "${ZAI_API_KEY:-}" ]]; then
+                echo "${ZAI_API_KEY}"
+                return
+            elif [[ -n "${ZHIPUAI_API_KEY:-}" ]]; then
+                echo "${ZHIPUAI_API_KEY}"
+                return
+            elif [[ -n "${ZHIPU_API_KEY:-}" ]]; then
+                echo "${ZHIPU_API_KEY}"
+                return
+            fi
+            ;;
+        "minimax")
+            if [[ -n "${MINIMAX_API_KEY:-}" ]]; then
+                echo "${MINIMAX_API_KEY}"
+                return
+            fi
+            ;;
+        "llama-server")
+            echo "none"
+            return
+            ;;
+        "custom")
+            # No env vars for custom URLs
+            ;;
+    esac
+
+    # If we get here and it's not llama-server or anthropic special case, prompt for key
+    if [[ "$provider" != "anthropic" ]] && [[ "$provider" != "llama-server" ]]; then
+        prompt_for_api_key "$provider_name"
+    fi
+}
+
+# Legacy get_api_key for backward compatibility (exits on error)
+get_api_key() {
+    local result
+    if result=$(get_api_key_with_fallback "$1" "" "$1"); then
+        echo "$result"
+    else
+        exit 1
+    fi
+}
+
+# Show usage
+usage() {
+    cat << 'EOF'
+Claude Code Multi-Provider Launcher v1.0
+
+USAGE:
+    cc-launcher [provider|URL] [api_key] [--] [claude-args...]
+
+PROVIDERS:
+    sub (subscription)  Claude subscription (default)
+    api                 Claude API key
+    deepseek            DeepSeek (DEEPSEEK_API_KEY)
+    zhipu (zai, glm)    Zhipu AI (ZAI_API_KEY)
+    moonshot (kimi)     Moonshot AI (MOONSHOT_API_KEY)
+    minimax             MiniMax (MINIMAX_API_KEY)
+    llama-server        Local http://localhost:8080 (no key)
+    https://...         Any Anthropic-compatible URL
+
+EXAMPLES:
+    cc-launcher sub                                # Claude subscription
+    cc-launcher deepseek                           # Prompt for API key
+    cc-launcher glm                                # Zhipu via alias
+    cc-launcher minimax                            # MiniMax
+    cc-launcher kimi                               # Moonshot via alias
+    cc-launcher "https://api.xyz.com"             # Custom URL
+
+API KEY METHODS:
+    1. Inline: cc-launcher deepseek "sk-..."
+    2. Env vars: DEEPSEEK_API_KEY, ZAI_API_KEY, etc
+    3. Interactive prompt (if TTY)
+EOF
+}
+
+# Main launcher
+main() {
+    local first_arg="${1:-sub}"
+    local second_arg="${2:-}"
+
+    # Handle help flag
+    if [[ "$first_arg" == "--help" ]] || [[ "$first_arg" == "-h" ]]; then
+        usage
+        exit 0
+    fi
+
+    # Detect if first arg is a custom URL (starts with http:// or https://)
+    if [[ "$first_arg" =~ ^https?:// ]]; then
+        # Custom URL mode
+        local custom_url="$first_arg"
+        local inline_key="$second_arg"
+
+        # Shift both args for remaining claude args
+        if [[ $# -ge 2 ]]; then
+            shift 2
+        elif [[ $# -ge 1 ]]; then
+            shift
+        fi
+
+        # Get API key: inline → prompt
+        local api_key="$inline_key"
+        if [[ -z "$api_key" ]]; then
+            api_key=$(prompt_for_api_key "custom API")
+        fi
+
+        export ANTHROPIC_BASE_URL="$custom_url"
+        export ANTHROPIC_AUTH_TOKEN="$api_key"
+        # Don't set models, let Claude CLI use defaults
+
+        echo "Using custom URL: $custom_url" >&2
+
+        # Disable telemetry and non-essential traffic for privacy
+        export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+        exec claude "$@"
+    fi
+
+    # Preset provider mode
+    local provider="$first_arg"
+    local inline_key="$second_arg"
+    local provider_mode=""
+    local provider_base=""
+
+    # Map provider aliases to canonical names
+    case "$provider" in
+        "subscription"|"sub")
+            provider_mode="subscription"
+            provider_base="anthropic"
+            ;;
+        "api")
+            provider_mode="api"
+            provider_base="anthropic"
+            ;;
+        "moonshot"|"kimi")
+            provider_mode="moonshot"
+            provider_base="moonshot"
+            ;;
+        "deepseek")
+            provider_mode="deepseek"
+            provider_base="deepseek"
+            ;;
+        "zhipu"|"zai"|"glm")
+            provider_mode="zhipu"
+            provider_base="zhipu"
+            ;;
+        "minimax")
+            provider_mode="minimax"
+            provider_base="minimax"
+            ;;
+        "llama-server")
+            provider_mode="llama-server"
+            provider_base="llama-server"
+            ;;
+        *)
+            echo "Error: Unknown provider '$provider'" >&2
+            echo "Available: subscription (sub) api moonshot (kimi) deepseek zhipu (zai glm) minimax llama-server" >&2
+            echo "You can also use a custom URL directly as the first argument" >&2
+            exit 1
+            ;;
+    esac
+
+    if [[ "$provider_mode" == "subscription" ]]; then
+        if [[ $# -gt 0 ]]; then
+            shift
+        fi
+        if [[ -n "$second_arg" ]]; then
+            shift
+        fi
+
+        if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+            echo "Ignoring Claude API key environment variables for subscription mode" >&2
+        fi
+        unset ANTHROPIC_API_KEY
+
+        if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
+            echo "Using Claude subscription via CLAUDE_CODE_OAUTH_TOKEN" >&2
+        else
+            echo "Launching Claude subscription; relying on macOS Keychain or interactive login if needed" >&2
+        fi
+
+        exec claude "$@"
+    fi
+
+    if [[ "$provider_mode" == "api" ]]; then
+        if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
+            echo "Ignoring CLAUDE_CODE_OAUTH_TOKEN in Anthropic API mode" >&2
+            unset CLAUDE_CODE_OAUTH_TOKEN
+        fi
+        echo "Using Claude with API key" >&2
+    fi
+
+    # Shift args: provider name, and optional inline key
+    if [[ $# -gt 0 ]]; then
+        shift
+    fi
+    if [[ -n "$second_arg" ]]; then
+        shift
+    fi
+
+    # Get API key: inline → env vars → prompt
+    local api_key
+    local provider_display_name="$provider_base"
+    [[ "$provider_base" == "zhipu" ]] && provider_display_name="Zhipu"
+    [[ "$provider_base" == "moonshot" ]] && provider_display_name="Moonshot"
+
+    api_key=$(get_api_key_with_fallback "$provider_base" "$inline_key" "$provider_display_name")
+
+    if [[ "$provider_base" == "anthropic" ]] && [[ -z "$api_key" ]]; then
+        echo "Error: API mode requires ANTHROPIC_API_KEY (use 'cc-launcher subscription' for subscription)." >&2
+        exit 1
+    fi
+
+    local primary_model
+    local fast_model
+
+    primary_model="$(get_provider_model "$provider_base")"
+    fast_model="$(get_provider_fast_model "$provider_base")"
+
+    export ANTHROPIC_BASE_URL="$(get_provider_url "$provider_base")"
+    export ANTHROPIC_AUTH_TOKEN="$api_key"
+    export ANTHROPIC_MODEL="$primary_model"
+
+    # Map Claude model aliases to provider's models
+    # For alternative providers without true tiers, map all aliases to their best model
+    case "$provider_base" in
+        "moonshot")
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MOONSHOT"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_MOONSHOT"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_MOONSHOT"
+            ;;
+        "deepseek")
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_DEEPSEEK"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_DEEPSEEK"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_DEEPSEEK"
+            ;;
+        "minimax")
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MINIMAX"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_MINIMAX"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_MINIMAX_FAST"
+            ;;
+        "zhipu")
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_ZHIPU"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_ZHIPU"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_ZHIPU_FAST"
+            ;;
+        "llama-server")
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_LLAMA_SERVER"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_LLAMA_SERVER"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_LLAMA_SERVER"
+            ;;
+        "anthropic")
+            # For official Anthropic, let Claude Code use defaults
+            unset ANTHROPIC_DEFAULT_OPUS_MODEL
+            unset ANTHROPIC_DEFAULT_SONNET_MODEL
+            unset ANTHROPIC_DEFAULT_HAIKU_MODEL
+            ;;
+    esac
+
+    # Disable telemetry and non-essential traffic for privacy
+    export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+    exec claude "$@"
+}
+
+# Run main function
+main "$@"
