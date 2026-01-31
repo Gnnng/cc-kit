@@ -12,15 +12,15 @@ set -e
 VERSION="1.0.0"
 REPO_RAW_URL="https://raw.githubusercontent.com/Gnnng/cc-kit/main"
 
-# ANSI color codes
+# ANSI color codes (using $'...' so escapes are interpreted at assignment)
 if [[ -t 1 ]]; then
-    C_RESET='\033[0m'
-    C_BOLD='\033[1m'
-    C_RED='\033[31m'
-    C_GREEN='\033[32m'
-    C_YELLOW='\033[33m'
-    C_BLUE='\033[34m'
-    C_CYAN='\033[36m'
+    C_RESET=$'\033[0m'
+    C_BOLD=$'\033[1m'
+    C_RED=$'\033[31m'
+    C_GREEN=$'\033[32m'
+    C_YELLOW=$'\033[33m'
+    C_BLUE=$'\033[34m'
+    C_CYAN=$'\033[36m'
 else
     C_RESET=''
     C_BOLD=''
@@ -33,19 +33,19 @@ fi
 
 # Print colored messages
 info() {
-    echo -e "${C_BLUE}==>${C_RESET} ${C_BOLD}$1${C_RESET}"
+    echo "${C_BLUE}==>${C_RESET} ${C_BOLD}$1${C_RESET}"
 }
 
 success() {
-    echo -e "${C_GREEN}✓${C_RESET} $1"
+    echo "${C_GREEN}✓${C_RESET} $1"
 }
 
 warn() {
-    echo -e "${C_YELLOW}⚠${C_RESET} $1"
+    echo "${C_YELLOW}⚠${C_RESET} $1"
 }
 
 error() {
-    echo -e "${C_RED}✗${C_RESET} $1" >&2
+    echo "${C_RED}✗${C_RESET} $1" >&2
 }
 
 # Detect if running locally (script exists in repo) or remotely (via curl)
@@ -143,7 +143,7 @@ install_cc_launcher() {
     if command -v cc-launcher &>/dev/null || [[ -x "$install_path" ]]; then
         success "Installation complete!"
         echo ""
-        echo -e "  Run ${C_CYAN}cc-launcher --help${C_RESET} for usage"
+        echo "  Run ${C_CYAN}cc-launcher --help${C_RESET} for usage"
     fi
 }
 
@@ -214,7 +214,7 @@ install_cc_headless() {
     echo ""
     echo "    export ANTHROPIC_API_KEY=\"sk-ant-...\""
     echo ""
-    echo -e "  See ${C_CYAN}~/.claude.json${C_RESET} to customize settings"
+    echo "  See ${C_CYAN}~/.claude.json${C_RESET} to customize settings"
 }
 
 # Show help
