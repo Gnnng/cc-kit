@@ -2,6 +2,34 @@
 
 A collection of tools and utilities for Claude Code.
 
+## Installation
+
+### Quick Install (recommended)
+
+```bash
+# Install cc-launcher
+curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-launcher
+
+# Install cc-headless config
+curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-headless
+```
+
+### Options
+
+```bash
+# Force overwrite existing files
+curl -fsSL ... | bash -s cc-launcher -f
+
+# Preview what will be installed
+./install.sh cc-launcher --dry-run
+```
+
+### Manual Install
+
+See component-specific sections below for manual installation steps.
+
+---
+
 ## What's Included
 
 | Tool | Description |
