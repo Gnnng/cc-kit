@@ -1,4 +1,5 @@
 {
+  "model": "opus",
   "includeCoAuthoredBy": false,
   "permissions": {
     "defaultMode": "bypassPermissions"
