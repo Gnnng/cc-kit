@@ -463,6 +463,10 @@ main() {
         fi
 
         export ANTHROPIC_BASE_URL="$local_server_url"
+        # Only set a placeholder token if user hasn't set one
+        if [[ -z "${ANTHROPIC_AUTH_TOKEN:-}" ]] && [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+            export ANTHROPIC_AUTH_TOKEN="local"
+        fi
 
         # If model is provided, parse and set tier vars
         if [[ -n "$custom_model" ]]; then
