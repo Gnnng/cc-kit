@@ -79,7 +79,7 @@ check_env_var() {
 prompt_for_api_key() {
     local provider_name="$1"
     if [[ -t 0 ]]; then  # Running in TTY
-        read -s -p "Enter $provider_name API key: " api_key
+        read -rs -p "Enter $provider_name API key: " api_key
         echo >&2
         if [[ -n "$api_key" ]]; then
             echo "$api_key"
@@ -185,7 +185,6 @@ if [[ -t 1 ]]; then
     C_CYAN='\033[36m'
     C_YELLOW='\033[33m'
     C_GREEN='\033[32m'
-    C_MAGENTA='\033[35m'
 else
     C_RESET=''
     C_BOLD=''
@@ -193,7 +192,6 @@ else
     C_CYAN=''
     C_YELLOW=''
     C_GREEN=''
-    C_MAGENTA=''
 fi
 
 # Redact API key for display (show first 4 and last 4 chars)
@@ -236,6 +234,7 @@ set_model_tiers() {
 
     # Split by comma (portable method)
     local IFS=','
+    # shellcheck disable=SC2086  # Intentional word splitting
     set -- $model_str
     local count=$#
 
@@ -575,13 +574,9 @@ main() {
 
     api_key=$(get_api_key_with_fallback "$provider_base" "$inline_key" "$provider_display_name")
 
-    local primary_model
-    local fast_model
-
-    primary_model="$(get_provider_model "$provider_base")"
-    fast_model="$(get_provider_fast_model "$provider_base")"
-
-    export ANTHROPIC_BASE_URL="$(get_provider_url "$provider_base")"
+    local base_url
+    base_url="$(get_provider_url "$provider_base")"
+    export ANTHROPIC_BASE_URL="$base_url"
     export ANTHROPIC_AUTH_TOKEN="$api_key"
 
     # Map Claude model aliases to provider's models
