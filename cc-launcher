@@ -13,7 +13,11 @@ PROVIDERS_DEEPSEEK="https://api.deepseek.com/anthropic"
 PROVIDERS_ZHIPU="https://api.z.ai/api/anthropic"
 PROVIDERS_MINIMAX="https://api.minimax.io/anthropic"
 PROVIDERS_LLAMA_SERVER="http://localhost:8080"
+PROVIDERS_OLLAMA="http://localhost:11434"
+PROVIDERS_LMSTUDIO="http://localhost:1234"
+PROVIDERS_LLAMABARN="http://localhost:2276"
 
+MODELS_MOONSHOT_OPUS="kimi-k2.5"
 MODELS_MOONSHOT="kimi-k2-turbo-preview"
 MODELS_ANTHROPIC="claude-sonnet-4-5"
 MODELS_DEEPSEEK="deepseek-chat"
@@ -22,7 +26,6 @@ MODELS_ZHIPU="GLM-4.7"
 MODELS_ZHIPU_FAST="GLM-4.7-Flash"
 MODELS_MINIMAX="MiniMax-M2.1"
 MODELS_MINIMAX_FAST="MiniMax-M2.1-lightning"
-MODELS_LLAMA_SERVER="default"
 
 # Get provider URL
 get_provider_url() {
@@ -33,6 +36,9 @@ get_provider_url() {
         "zhipu") echo "$PROVIDERS_ZHIPU" ;;
         "minimax") echo "$PROVIDERS_MINIMAX" ;;
         "llama-server") echo "$PROVIDERS_LLAMA_SERVER" ;;
+        "ollama") echo "$PROVIDERS_OLLAMA" ;;
+        "lmstudio") echo "$PROVIDERS_LMSTUDIO" ;;
+        "llamabarn") echo "$PROVIDERS_LLAMABARN" ;;
     esac
 }
 
@@ -44,7 +50,7 @@ get_provider_model() {
         "deepseek") echo "$MODELS_DEEPSEEK" ;;
         "zhipu") echo "$MODELS_ZHIPU" ;;
         "minimax") echo "$MODELS_MINIMAX" ;;
-        "llama-server") echo "$MODELS_LLAMA_SERVER" ;;
+        "llama-server"|"ollama"|"lmstudio"|"llamabarn") echo "" ;;
     esac
 }
 
@@ -116,9 +122,10 @@ get_api_key_with_fallback() {
             if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
                 echo "${ANTHROPIC_API_KEY}"
                 return
+            elif [[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]]; then
+                echo "${ANTHROPIC_AUTH_TOKEN}"
+                return
             fi
-            # For Anthropic API mode, return 1 to let main() handle the error
-            return 1
             ;;
         "deepseek")
             if [[ -n "${DEEPSEEK_API_KEY:-}" ]]; then
@@ -144,7 +151,7 @@ get_api_key_with_fallback() {
                 return
             fi
             ;;
-        "llama-server")
+        "llama-server"|"ollama"|"lmstudio"|"llamabarn")
             echo "none"
             return
             ;;
@@ -153,8 +160,9 @@ get_api_key_with_fallback() {
             ;;
     esac
 
-    # If we get here and it's not llama-server or anthropic special case, prompt for key
-    if [[ "$provider" != "anthropic" ]] && [[ "$provider" != "llama-server" ]]; then
+    # If we get here and it's not a local server, prompt for key
+    if [[ "$provider" != "llama-server" ]] && [[ "$provider" != "ollama" ]] && \
+       [[ "$provider" != "lmstudio" ]] && [[ "$provider" != "llamabarn" ]]; then
         prompt_for_api_key "$provider_name"
     fi
 }
@@ -169,37 +177,222 @@ get_api_key() {
     fi
 }
 
+# ANSI color codes
+if [[ -t 1 ]]; then
+    C_RESET='\033[0m'
+    C_BOLD='\033[1m'
+    C_DIM='\033[2m'
+    C_CYAN='\033[36m'
+    C_YELLOW='\033[33m'
+    C_GREEN='\033[32m'
+    C_MAGENTA='\033[35m'
+else
+    C_RESET=''
+    C_BOLD=''
+    C_DIM=''
+    C_CYAN=''
+    C_YELLOW=''
+    C_GREEN=''
+    C_MAGENTA=''
+fi
+
+# Redact API key for display (show first 4 and last 4 chars)
+redact_key() {
+    local key="$1"
+    local len=${#key}
+    if [[ $len -le 12 ]]; then
+        echo "${key:0:2}...${key: -2}"
+    else
+        echo "${key:0:4}...${key: -4}"
+    fi
+}
+
+# Format env var with color (name in yellow, value after =)
+fmt_env() {
+    local name="$1"
+    local value="$2"
+    if [[ -n "$value" ]]; then
+        echo -e "${C_YELLOW}${name}${C_RESET}=$(redact_key "$value")"
+    else
+        echo -e "${C_YELLOW}${name}${C_RESET}=${C_DIM}(not set)${C_RESET}"
+    fi
+}
+
+# Format model name with color
+fmt_model() {
+    echo -e "${C_GREEN}$1${C_RESET}"
+}
+
+# Parse and set model tiers from comma-separated string
+# 1 model: all tiers get it
+# 2 models (a,b): opus=a, sonnet=a, haiku=b
+# 3 models (a,b,c): opus=a, sonnet=b, haiku=c
+set_model_tiers() {
+    local model_str="$1"
+
+    if [[ -z "$model_str" ]]; then
+        return
+    fi
+
+    # Split by comma (portable method)
+    local IFS=','
+    set -- $model_str
+    local count=$#
+
+    case $count in
+        1)
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$1"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$1"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$1"
+            ;;
+        2)
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$1"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$1"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$2"
+            ;;
+        3)
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$1"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$2"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$3"
+            ;;
+        *)
+            echo "Error: Model string should have 1-3 comma-separated values" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Format provider name with color
+fmt_provider() {
+    echo -e "${C_CYAN}${C_BOLD}$1${C_RESET}"
+}
+
+# Get API key status for a provider
+get_key_status() {
+    local provider="$1"
+    case "$provider" in
+        "subscription")
+            if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
+                fmt_env "CLAUDE_CODE_OAUTH_TOKEN" "$CLAUDE_CODE_OAUTH_TOKEN"
+            else
+                echo -e "${C_DIM}(stored auth or login)${C_RESET}"
+            fi
+            ;;
+        "anthropic")
+            if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+                fmt_env "ANTHROPIC_API_KEY" "$ANTHROPIC_API_KEY"
+            elif [[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]]; then
+                fmt_env "ANTHROPIC_AUTH_TOKEN" "$ANTHROPIC_AUTH_TOKEN"
+            else
+                echo -e "${C_YELLOW}ANTHROPIC_API_KEY${C_RESET}=${C_DIM}(not set)${C_RESET}"
+            fi
+            ;;
+        "deepseek")
+            fmt_env "DEEPSEEK_API_KEY" "${DEEPSEEK_API_KEY:-}"
+            ;;
+        "zhipu")
+            if [[ -n "${ZAI_API_KEY:-}" ]]; then
+                fmt_env "ZAI_API_KEY" "$ZAI_API_KEY"
+            elif [[ -n "${ZHIPUAI_API_KEY:-}" ]]; then
+                fmt_env "ZHIPUAI_API_KEY" "$ZHIPUAI_API_KEY"
+            elif [[ -n "${ZHIPU_API_KEY:-}" ]]; then
+                fmt_env "ZHIPU_API_KEY" "$ZHIPU_API_KEY"
+            else
+                fmt_env "ZAI_API_KEY" ""
+            fi
+            ;;
+        "moonshot")
+            if [[ -n "${MOONSHOT_API_KEY:-}" ]]; then
+                fmt_env "MOONSHOT_API_KEY" "$MOONSHOT_API_KEY"
+            elif [[ -n "${KIMI_API_KEY:-}" ]]; then
+                fmt_env "KIMI_API_KEY" "$KIMI_API_KEY"
+            else
+                fmt_env "MOONSHOT_API_KEY" ""
+            fi
+            ;;
+        "minimax")
+            fmt_env "MINIMAX_API_KEY" "${MINIMAX_API_KEY:-}"
+            ;;
+        *)
+            echo "-"
+            ;;
+    esac
+}
+
+# Show a provider entry (two lines: provider/url/auth, then models)
+show_provider_entry() {
+    local provider="$1"
+    local url="$2"
+    local auth="$3"
+    local models="$4"
+
+    # First line: provider, URL, auth
+    echo -e "  ${C_CYAN}${C_BOLD}${provider}${C_RESET}"
+    echo -e "      URL:  ${C_DIM}${url}${C_RESET}"
+    echo -e "      Auth: ${auth}"
+    if [[ -n "$models" ]]; then
+        echo -e "      Models: ${models}"
+    fi
+    echo ""
+}
+
+# Show provider table
+show_providers() {
+    local col2=30  # URL column width
+
+    echo "PROVIDERS:"
+
+    # Subscription & Anthropic API
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} %-${col2}s %b\n" "subscription" "" "$(get_key_status subscription)"
+    echo -e "    ${C_DIM}(sub)${C_RESET}"
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "anthropic" "api.anthropic.com" "$(get_key_status anthropic)"
+
+    # Third-party providers
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "deepseek" "api.deepseek.com/anthropic" "$(get_key_status deepseek)"
+    echo -e "               $(fmt_model "$MODELS_DEEPSEEK")"
+
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "zhipu" "api.z.ai/api/anthropic" "$(get_key_status zhipu)"
+    echo -e "    ${C_DIM}(zai)${C_RESET}      $(fmt_model "$MODELS_ZHIPU"), $(fmt_model "$MODELS_ZHIPU_FAST")"
+
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "moonshot" "api.moonshot.ai/anthropic" "$(get_key_status moonshot)"
+    echo -e "    ${C_DIM}(kimi)${C_RESET}     $(fmt_model "$MODELS_MOONSHOT_OPUS"), $(fmt_model "$MODELS_MOONSHOT")"
+
+    printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "minimax" "api.minimax.io/anthropic" "$(get_key_status minimax)"
+    echo -e "               $(fmt_model "$MODELS_MINIMAX"), $(fmt_model "$MODELS_MINIMAX_FAST")"
+
+    # Local servers
+    echo -e "  ${C_DIM}── local servers [model] ──${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}ollama${C_RESET}       ${C_DIM}localhost:11434${C_RESET}    ${C_CYAN}${C_BOLD}lmstudio${C_RESET}     ${C_DIM}localhost:1234${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}llama-server${C_RESET} ${C_DIM}localhost:8080${C_RESET}     ${C_CYAN}${C_BOLD}llamabarn${C_RESET}    ${C_DIM}localhost:2276${C_RESET}"
+
+    # Custom URL
+    echo -e "  ${C_DIM}── custom url ──${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}http(s)://...${C_RESET} ${C_DIM}<key> [model]${C_RESET}  Any Anthropic-compatible endpoint"
+}
+
 # Show usage
 usage() {
     cat << 'EOF'
 Claude Code Multi-Provider Launcher v1.0
 
-USAGE:
-    cc-launcher [provider|URL] [api_key] [--] [claude-args...]
-
-PROVIDERS:
-    sub (subscription)  Claude subscription (default)
-    api                 Claude API key
-    deepseek            DeepSeek (DEEPSEEK_API_KEY)
-    zhipu (zai, glm)    Zhipu AI (ZAI_API_KEY)
-    moonshot (kimi)     Moonshot AI (MOONSHOT_API_KEY)
-    minimax             MiniMax (MINIMAX_API_KEY)
-    llama-server        Local http://localhost:8080 (no key)
-    https://...         Any Anthropic-compatible URL
+USAGE:  cc-launcher [PROVIDER] [KEY] [--] [claude-args...]
+        cc-launcher <LOCAL-SERVER> [MODEL] [--] [claude-args...]
+        cc-launcher <URL> <KEY> [MODEL] [--] [claude-args...]
 
 EXAMPLES:
-    cc-launcher sub                                # Claude subscription
-    cc-launcher deepseek                           # Prompt for API key
-    cc-launcher glm                                # Zhipu via alias
-    cc-launcher minimax                            # MiniMax
-    cc-launcher kimi                               # Moonshot via alias
-    cc-launcher "https://api.xyz.com"             # Custom URL
+    cc-launcher                            # Claude subscription (default)
+    cc-launcher deepseek                   # Use env key or prompt
+    cc-launcher ollama "gpt-oss"           # Local server with model
+    cc-launcher ollama "big,small"         # 2 models: opus+sonnet=big, haiku=small
+    cc-launcher ollama "huge,big,small"    # 3 models: opus=huge, sonnet=big, haiku=small
+    cc-launcher "https://..." "key" "model"
 
-API KEY METHODS:
-    1. Inline: cc-launcher deepseek "sk-..."
-    2. Env vars: DEEPSEEK_API_KEY, ZAI_API_KEY, etc
-    3. Interactive prompt (if TTY)
+MODEL:  "m"       all tiers use m
+        "a,b"     opus+sonnet=a  haiku=b
+        "a,b,c"   opus=a  sonnet=b  haiku=c
 EOF
+    echo ""
+    show_providers
 }
 
 # Main launcher
@@ -218,25 +411,77 @@ main() {
         # Custom URL mode
         local custom_url="$first_arg"
         local inline_key="$second_arg"
+        local custom_model="${3:-}"
 
-        # Shift both args for remaining claude args
-        if [[ $# -ge 2 ]]; then
+        # Shift args for remaining claude args
+        if [[ $# -ge 3 ]] && [[ -n "$custom_model" ]]; then
+            shift 3
+        elif [[ $# -ge 2 ]]; then
             shift 2
         elif [[ $# -ge 1 ]]; then
             shift
         fi
 
-        # Get API key: inline → prompt
+        # Get API key: inline (empty string = no key) → prompt
         local api_key="$inline_key"
-        if [[ -z "$api_key" ]]; then
+        if [[ -z "$api_key" ]] && [[ "$second_arg" != "" ]]; then
+            # No second arg provided at all, prompt for key
             api_key=$(prompt_for_api_key "custom API")
         fi
 
         export ANTHROPIC_BASE_URL="$custom_url"
-        export ANTHROPIC_AUTH_TOKEN="$api_key"
-        # Don't set models, let Claude CLI use defaults
+        if [[ -n "$api_key" ]]; then
+            export ANTHROPIC_AUTH_TOKEN="$api_key"
+        fi
 
-        echo "Using custom URL: $custom_url" >&2
+        # If model is provided, parse and set tier vars
+        if [[ -n "$custom_model" ]]; then
+            set_model_tiers "$custom_model"
+            echo "Using custom URL: $custom_url with model: $custom_model" >&2
+        else
+            echo "Using custom URL: $custom_url" >&2
+        fi
+
+        # Disable telemetry and non-essential traffic for privacy
+        export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+        exec claude "$@"
+    fi
+
+    # Check if it's a local server provider (handle separately for key/model args)
+    local local_server_url=""
+    case "$first_arg" in
+        "llama-server") local_server_url="$PROVIDERS_LLAMA_SERVER" ;;
+        "ollama") local_server_url="$PROVIDERS_OLLAMA" ;;
+        "lmstudio"|"lm-studio") local_server_url="$PROVIDERS_LMSTUDIO" ;;
+        "llamabarn"|"llama-barn") local_server_url="$PROVIDERS_LLAMABARN" ;;
+    esac
+
+    if [[ -n "$local_server_url" ]]; then
+        local provider_name="$first_arg"
+        local custom_model=""
+
+        # Second arg is model only if it doesn't start with -
+        if [[ -n "$second_arg" ]] && [[ "$second_arg" != -* ]]; then
+            custom_model="$second_arg"
+        fi
+
+        # Shift args for remaining claude args
+        if [[ $# -ge 2 ]] && [[ -n "$custom_model" ]]; then
+            shift 2
+        elif [[ $# -ge 1 ]]; then
+            shift
+        fi
+
+        export ANTHROPIC_BASE_URL="$local_server_url"
+
+        # If model is provided, parse and set tier vars
+        if [[ -n "$custom_model" ]]; then
+            set_model_tiers "$custom_model"
+            echo "Using $provider_name: $local_server_url with model: $custom_model" >&2
+        else
+            echo "Using $provider_name: $local_server_url" >&2
+        fi
 
         # Disable telemetry and non-essential traffic for privacy
         export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
@@ -256,8 +501,8 @@ main() {
             provider_mode="subscription"
             provider_base="anthropic"
             ;;
-        "api")
-            provider_mode="api"
+        "anthropic"|"api")
+            provider_mode="anthropic"
             provider_base="anthropic"
             ;;
         "moonshot"|"kimi")
@@ -276,13 +521,9 @@ main() {
             provider_mode="minimax"
             provider_base="minimax"
             ;;
-        "llama-server")
-            provider_mode="llama-server"
-            provider_base="llama-server"
-            ;;
         *)
             echo "Error: Unknown provider '$provider'" >&2
-            echo "Available: subscription (sub) api moonshot (kimi) deepseek zhipu (zai glm) minimax llama-server" >&2
+            echo "Available: subscription (sub) api moonshot (kimi) deepseek zhipu (zai glm) minimax llama-server ollama lmstudio llamabarn" >&2
             echo "You can also use a custom URL directly as the first argument" >&2
             exit 1
             ;;
@@ -310,12 +551,12 @@ main() {
         exec claude "$@"
     fi
 
-    if [[ "$provider_mode" == "api" ]]; then
+    if [[ "$provider_mode" == "anthropic" ]]; then
         if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
             echo "Ignoring CLAUDE_CODE_OAUTH_TOKEN in Anthropic API mode" >&2
             unset CLAUDE_CODE_OAUTH_TOKEN
         fi
-        echo "Using Claude with API key" >&2
+        echo "Using Anthropic API" >&2
     fi
 
     # Shift args: provider name, and optional inline key
@@ -334,11 +575,6 @@ main() {
 
     api_key=$(get_api_key_with_fallback "$provider_base" "$inline_key" "$provider_display_name")
 
-    if [[ "$provider_base" == "anthropic" ]] && [[ -z "$api_key" ]]; then
-        echo "Error: API mode requires ANTHROPIC_API_KEY (use 'cc-launcher subscription' for subscription)." >&2
-        exit 1
-    fi
-
     local primary_model
     local fast_model
 
@@ -347,13 +583,12 @@ main() {
 
     export ANTHROPIC_BASE_URL="$(get_provider_url "$provider_base")"
     export ANTHROPIC_AUTH_TOKEN="$api_key"
-    export ANTHROPIC_MODEL="$primary_model"
 
     # Map Claude model aliases to provider's models
     # For alternative providers without true tiers, map all aliases to their best model
     case "$provider_base" in
         "moonshot")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MOONSHOT"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MOONSHOT_OPUS"
             export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_MOONSHOT"
             export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_MOONSHOT"
             ;;
@@ -371,11 +606,6 @@ main() {
             export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_ZHIPU"
             export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_ZHIPU"
             export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_ZHIPU_FAST"
-            ;;
-        "llama-server")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_LLAMA_SERVER"
-            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_LLAMA_SERVER"
-            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_LLAMA_SERVER"
             ;;
         "anthropic")
             # For official Anthropic, let Claude Code use defaults
