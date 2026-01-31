@@ -1,0 +1,15 @@
+{
+  "name": "cc-kit test",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "./install.sh cc-headless && ./install.sh cc-launcher && curl -fsSL https://claude.ai/install.sh | bash",
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "ANTHROPIC_AUTH_TOKEN": "${localEnv:ANTHROPIC_AUTH_TOKEN}",
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}",
+    "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY}",
+    "ZAI_API_KEY": "${localEnv:ZAI_API_KEY}",
+    "MOONSHOT_API_KEY": "${localEnv:MOONSHOT_API_KEY}",
+    "MINIMAX_API_KEY": "${localEnv:MINIMAX_API_KEY}"
+  },
+  "remoteUser": "vscode"
+}

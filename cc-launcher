@@ -113,9 +113,6 @@ get_api_key_with_fallback() {
             if [[ -n "${MOONSHOT_API_KEY:-}" ]]; then
                 echo "${MOONSHOT_API_KEY}"
                 return
-            elif [[ -n "${KIMI_API_KEY:-}" ]]; then
-                echo "${KIMI_API_KEY}"
-                return
             fi
             ;;
         "anthropic")
@@ -139,9 +136,6 @@ get_api_key_with_fallback() {
                 return
             elif [[ -n "${ZHIPUAI_API_KEY:-}" ]]; then
                 echo "${ZHIPUAI_API_KEY}"
-                return
-            elif [[ -n "${ZHIPU_API_KEY:-}" ]]; then
-                echo "${ZHIPU_API_KEY}"
                 return
             fi
             ;;
@@ -294,8 +288,6 @@ get_key_status() {
                 fmt_env "ZAI_API_KEY" "$ZAI_API_KEY"
             elif [[ -n "${ZHIPUAI_API_KEY:-}" ]]; then
                 fmt_env "ZHIPUAI_API_KEY" "$ZHIPUAI_API_KEY"
-            elif [[ -n "${ZHIPU_API_KEY:-}" ]]; then
-                fmt_env "ZHIPU_API_KEY" "$ZHIPU_API_KEY"
             else
                 fmt_env "ZAI_API_KEY" ""
             fi
@@ -303,8 +295,6 @@ get_key_status() {
         "moonshot")
             if [[ -n "${MOONSHOT_API_KEY:-}" ]]; then
                 fmt_env "MOONSHOT_API_KEY" "$MOONSHOT_API_KEY"
-            elif [[ -n "${KIMI_API_KEY:-}" ]]; then
-                fmt_env "KIMI_API_KEY" "$KIMI_API_KEY"
             else
                 fmt_env "MOONSHOT_API_KEY" ""
             fi
