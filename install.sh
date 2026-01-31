@@ -143,7 +143,7 @@ install_cc_launcher() {
     if command -v cc-launcher &>/dev/null || [[ -x "$install_path" ]]; then
         success "Installation complete!"
         echo ""
-        echo "  Run ${C_CYAN}cc-launcher --help${C_RESET} for usage"
+        echo -e "  Run ${C_CYAN}cc-launcher --help${C_RESET} for usage"
     fi
 }
 
@@ -214,7 +214,7 @@ install_cc_headless() {
     echo ""
     echo "    export ANTHROPIC_API_KEY=\"sk-ant-...\""
     echo ""
-    echo "  See ${C_CYAN}~/.claude.json${C_RESET} to customize settings"
+    echo -e "  See ${C_CYAN}~/.claude.json${C_RESET} to customize settings"
 }
 
 # Show help
