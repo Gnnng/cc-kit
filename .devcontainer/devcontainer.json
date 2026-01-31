@@ -1,0 +1,19 @@
+{
+  "name": "cc-kit test",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+  "postCreateCommand": "./install.sh cc-headless --merge && ./install.sh cc-launcher",
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "ANTHROPIC_AUTH_TOKEN": "${localEnv:ANTHROPIC_AUTH_TOKEN}",
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}",
+    "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY}",
+    "ZAI_API_KEY": "${localEnv:ZAI_API_KEY}",
+    "MOONSHOT_API_KEY": "${localEnv:MOONSHOT_API_KEY}",
+    "MINIMAX_API_KEY": "${localEnv:MINIMAX_API_KEY}"
+  },
+  "remoteUser": "vscode"
+}
