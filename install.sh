@@ -147,50 +147,72 @@ install_cc_launcher() {
     fi
 }
 
+# Merge two JSON files (existing + new, new wins on conflicts)
+merge_json_files() {
+    local existing="$1"
+    local new_content="$2"
+    jq -s '.[0] * .[1]' "$existing" - <<< "$new_content"
+}
+
 # Install cc-headless
 install_cc_headless() {
     local mode="$1"
     local force="$2"
-    local dry_run="$3"
+    local merge="$3"
+    local dry_run="$4"
     local claude_dir="$HOME/.claude"
-    local files_to_install=(
+    local json_files=(
         "cc-headless/.claude.json:$HOME/.claude.json"
         "cc-headless/.claude/settings.json:$claude_dir/settings.json"
+    )
+    local other_files=(
         "cc-headless/.claude/statusline.sh:$claude_dir/statusline.sh"
     )
 
     info "Installing cc-headless configuration..."
 
+    # Check jq availability if merge is requested
+    if [[ "$merge" == "true" ]] && ! command -v jq &>/dev/null; then
+        error "Cannot merge without jq. Install jq or use --force"
+        return 1
+    fi
+
     if [[ "$dry_run" == "true" ]]; then
         echo "Would create directory: $claude_dir"
-        for file_mapping in "${files_to_install[@]}"; do
+        for file_mapping in "${json_files[@]}" "${other_files[@]}"; do
             local src="${file_mapping%%:*}"
             local dest="${file_mapping#*:}"
-            echo "Would install: $src -> $dest"
-            if [[ -f "$dest" ]]; then
-                warn "Note: $dest already exists (would need --force to overwrite)"
+            if [[ "$merge" == "true" ]] && [[ -f "$dest" ]] && [[ "$dest" == *.json ]]; then
+                echo "Would merge: $src -> $dest"
+            else
+                echo "Would install: $src -> $dest"
+            fi
+            if [[ -f "$dest" ]] && [[ "$merge" != "true" ]]; then
+                warn "Note: $dest already exists (would need --force to overwrite or --merge to merge)"
             fi
         done
         return 0
     fi
 
-    # Check for existing files
-    local existing_files=()
-    for file_mapping in "${files_to_install[@]}"; do
-        local dest="${file_mapping#*:}"
-        if [[ -f "$dest" ]]; then
-            existing_files+=("$dest")
-        fi
-    done
-
-    if [[ ${#existing_files[@]} -gt 0 ]] && [[ "$force" != "true" ]]; then
-        error "The following files already exist:"
-        for f in "${existing_files[@]}"; do
-            echo "  - $f"
+    # Check for existing files (only if not force and not merge)
+    if [[ "$force" != "true" ]] && [[ "$merge" != "true" ]]; then
+        local existing_files=()
+        for file_mapping in "${json_files[@]}" "${other_files[@]}"; do
+            local dest="${file_mapping#*:}"
+            if [[ -f "$dest" ]]; then
+                existing_files+=("$dest")
+            fi
         done
-        echo ""
-        echo "  Use --force to overwrite"
-        return 1
+
+        if [[ ${#existing_files[@]} -gt 0 ]]; then
+            error "The following files already exist:"
+            for f in "${existing_files[@]}"; do
+                echo "  - $f"
+            done
+            echo ""
+            echo "  Use --force to overwrite or --merge to merge JSON configs"
+            return 1
+        fi
     fi
 
     # Create .claude directory if needed
@@ -199,8 +221,26 @@ install_cc_headless() {
         success "Created directory: $claude_dir"
     fi
 
-    # Install each file
-    for file_mapping in "${files_to_install[@]}"; do
+    # Install JSON files (with optional merge)
+    for file_mapping in "${json_files[@]}"; do
+        local src="${file_mapping%%:*}"
+        local dest="${file_mapping#*:}"
+        local new_content
+        new_content=$(get_file "$src" "$mode")
+
+        if [[ "$merge" == "true" ]] && [[ -f "$dest" ]]; then
+            # Merge existing with new (new wins on conflicts)
+            merge_json_files "$dest" "$new_content" > "${dest}.tmp"
+            mv "${dest}.tmp" "$dest"
+            success "Merged: $dest"
+        else
+            echo "$new_content" > "$dest"
+            success "Installed: $dest"
+        fi
+    done
+
+    # Install other files (always overwrite if force or merge mode)
+    for file_mapping in "${other_files[@]}"; do
         local src="${file_mapping%%:*}"
         local dest="${file_mapping#*:}"
 
@@ -235,6 +275,7 @@ ${C_BOLD}COMPONENTS:${C_RESET}
 
 ${C_BOLD}OPTIONS:${C_RESET}
     -f, --force    Overwrite existing files
+    -m, --merge    Merge JSON configs with existing files (requires jq)
     --dry-run      Show what would be installed without making changes
     -h, --help     Show this help message
 
@@ -244,6 +285,9 @@ ${C_BOLD}EXAMPLES:${C_RESET}
 
     # Install cc-headless with force overwrite
     curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-headless -f
+
+    # Merge cc-headless configs with existing Claude Code configs
+    ./install.sh cc-headless --merge
 
     # Local install after cloning
     ./install.sh cc-launcher
@@ -259,6 +303,7 @@ EOF
 main() {
     local component=""
     local force="false"
+    local merge="false"
     local dry_run="false"
 
     # Parse arguments
@@ -270,6 +315,10 @@ main() {
                 ;;
             -f|--force)
                 force="true"
+                shift
+                ;;
+            -m|--merge)
+                merge="true"
                 shift
                 ;;
             --dry-run)
@@ -316,7 +365,7 @@ main() {
             install_cc_launcher "$mode" "$force" "$dry_run"
             ;;
         cc-headless|headless)
-            install_cc_headless "$mode" "$force" "$dry_run"
+            install_cc_headless "$mode" "$force" "$merge" "$dry_run"
             ;;
         *)
             error "Unknown component: $component"
