@@ -12,6 +12,17 @@ set -e
 VERSION="1.0.0"
 REPO_RAW_URL="https://raw.githubusercontent.com/Gnnng/cc-kit/main"
 
+# Temp files to clean up on exit
+TEMP_FILES=()
+
+cleanup() {
+    for f in "${TEMP_FILES[@]}"; do
+        [[ -f "$f" ]] && rm -f "$f"
+    done
+}
+
+trap cleanup EXIT
+
 # ANSI color codes (using $'...' so escapes are interpreted at assignment)
 if [[ -t 1 ]]; then
     C_RESET=$'\033[0m'
@@ -66,20 +77,32 @@ get_file() {
     local mode="$2"
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local content
 
     if [[ "$mode" == "local" ]]; then
-        cat "$script_dir/$path"
+        if [[ ! -f "$script_dir/$path" ]]; then
+            error "Local file not found: $script_dir/$path"
+            return 1
+        fi
+        if ! content=$(cat "$script_dir/$path"); then
+            error "Failed to read local file: $script_dir/$path"
+            return 1
+        fi
     else
-        curl -fsSL "$REPO_RAW_URL/$path"
+        if ! content=$(curl -fsSL "$REPO_RAW_URL/$path" 2>&1); then
+            error "Failed to download: $REPO_RAW_URL/$path"
+            error "curl error: $content"
+            return 1
+        fi
     fi
-}
 
-# Check if file exists locally
-local_file_exists() {
-    local path="$1"
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    [[ -f "$script_dir/$path" ]]
+    # Validate content is not empty
+    if [[ -z "$content" ]]; then
+        error "Downloaded file is empty: $path"
+        return 1
+    fi
+
+    echo "$content"
 }
 
 # Install cc-launcher
@@ -111,7 +134,10 @@ install_cc_launcher() {
 
     # Create directory if needed
     if [[ ! -d "$install_dir" ]]; then
-        mkdir -p "$install_dir"
+        if ! mkdir -p "$install_dir"; then
+            error "Failed to create directory: $install_dir"
+            return 1
+        fi
         success "Created directory: $install_dir"
     fi
 
@@ -119,14 +145,32 @@ install_cc_launcher() {
     if [[ "$mode" == "local" ]]; then
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        cp "$script_dir/cc-launcher" "$install_path"
+        if ! cp "$script_dir/cc-launcher" "$install_path"; then
+            error "Failed to copy cc-launcher to $install_path"
+            return 1
+        fi
     else
-        curl -fsSL "$REPO_RAW_URL/cc-launcher" -o "$install_path"
+        local curl_output
+        if ! curl_output=$(curl -fsSL "$REPO_RAW_URL/cc-launcher" -o "$install_path" 2>&1); then
+            error "Failed to download cc-launcher"
+            error "curl error: $curl_output"
+            rm -f "$install_path"
+            return 1
+        fi
+        # Validate downloaded file is not empty
+        if [[ ! -s "$install_path" ]]; then
+            error "Downloaded cc-launcher is empty"
+            rm -f "$install_path"
+            return 1
+        fi
     fi
     success "Installed: $install_path"
 
     # Make executable
-    chmod +x "$install_path"
+    if ! chmod +x "$install_path"; then
+        error "Failed to make $install_path executable"
+        return 1
+    fi
     success "Made executable"
 
     # Check PATH
@@ -147,11 +191,29 @@ install_cc_launcher() {
     fi
 }
 
+# Validate JSON content
+validate_json() {
+    local content="$1"
+    local source="$2"
+    if ! jq empty <<< "$content" 2>/dev/null; then
+        error "Invalid JSON content from: $source"
+        return 1
+    fi
+}
+
 # Merge two JSON files (existing + new, new wins on conflicts)
 merge_json_files() {
     local existing="$1"
     local new_content="$2"
-    jq -s '.[0] * .[1]' "$existing" - <<< "$new_content"
+    local result
+
+    if ! result=$(jq -s '.[0] * .[1]' "$existing" - <<< "$new_content" 2>&1); then
+        error "Failed to merge JSON files"
+        error "jq error: $result"
+        return 1
+    fi
+
+    echo "$result"
 }
 
 # Install cc-headless
@@ -226,7 +288,10 @@ install_cc_headless() {
 
     # Create .claude directory if needed
     if [[ ! -d "$claude_dir" ]]; then
-        mkdir -p "$claude_dir"
+        if ! mkdir -p "$claude_dir"; then
+            error "Failed to create directory: $claude_dir"
+            return 1
+        fi
         success "Created directory: $claude_dir"
     fi
 
@@ -235,12 +300,27 @@ install_cc_headless() {
         local src="${file_mapping%%:*}"
         local dest="${file_mapping#*:}"
         local new_content
-        new_content=$(get_file "$src" "$mode")
+
+        if ! new_content=$(get_file "$src" "$mode"); then
+            error "Failed to get file: $src"
+            return 1
+        fi
+
+        # Validate JSON content
+        if ! validate_json "$new_content" "$src"; then
+            return 1
+        fi
 
         if [[ "$merge" == "true" ]] && [[ -f "$dest" ]]; then
             # Merge existing with new (new wins on conflicts)
-            merge_json_files "$dest" "$new_content" > "${dest}.tmp"
-            mv "${dest}.tmp" "$dest"
+            local merged_content
+            if ! merged_content=$(merge_json_files "$dest" "$new_content"); then
+                return 1
+            fi
+            local tmp_file="${dest}.tmp"
+            TEMP_FILES+=("$tmp_file")
+            echo "$merged_content" > "$tmp_file"
+            mv "$tmp_file" "$dest"
             success "Merged: $dest"
         else
             echo "$new_content" > "$dest"
@@ -252,16 +332,30 @@ install_cc_headless() {
     for file_mapping in "${other_files[@]}"; do
         local src="${file_mapping%%:*}"
         local dest="${file_mapping#*:}"
+        local file_content
 
-        get_file "$src" "$mode" > "$dest"
+        if ! file_content=$(get_file "$src" "$mode"); then
+            error "Failed to get file: $src"
+            return 1
+        fi
+
+        echo "$file_content" > "$dest"
         success "Installed: $dest"
     done
 
     # Add bypass permissions mode if requested
     if [[ "$bypass_permissions" == "true" ]]; then
         local settings_file="$claude_dir/settings.json"
-        jq '.permissions.defaultMode = "bypassPermissions"' "$settings_file" > "${settings_file}.tmp"
-        mv "${settings_file}.tmp" "$settings_file"
+        local modified_settings
+        if ! modified_settings=$(jq '.permissions.defaultMode = "bypassPermissions"' "$settings_file" 2>&1); then
+            error "Failed to modify settings.json for bypass permissions"
+            error "jq error: $modified_settings"
+            return 1
+        fi
+        local tmp_file="${settings_file}.tmp"
+        TEMP_FILES+=("$tmp_file")
+        echo "$modified_settings" > "$tmp_file"
+        mv "$tmp_file" "$settings_file"
         success "Enabled bypass permissions mode"
     fi
 
@@ -297,6 +391,7 @@ ${C_BOLD}OPTIONS:${C_RESET}
     --yolo                Alias for --bypass-permissions
     --dry-run             Show what would be installed without making changes
     -h, --help            Show this help message
+    -v, --version         Show version information
 
 ${C_BOLD}EXAMPLES:${C_RESET}
     # Install cc-launcher (remote)
@@ -331,6 +426,10 @@ main() {
         case "$1" in
             -h|--help)
                 show_help
+                exit 0
+                ;;
+            -v|--version)
+                echo "cc-kit installer v${VERSION}"
                 exit 0
                 ;;
             -f|--force)
