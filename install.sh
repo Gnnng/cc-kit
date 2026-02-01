@@ -160,6 +160,7 @@ install_cc_headless() {
     local force="$2"
     local merge="$3"
     local dry_run="$4"
+    local bypass_permissions="$5"
     local claude_dir="$HOME/.claude"
     local json_files=(
         "cc-headless/.claude.json:$HOME/.claude.json"
@@ -171,9 +172,14 @@ install_cc_headless() {
 
     info "Installing cc-headless configuration..."
 
-    # Check jq availability if merge is requested
+    # Check jq availability if merge or bypass-permissions is requested
     if [[ "$merge" == "true" ]] && ! command -v jq &>/dev/null; then
         error "Cannot merge without jq. Install jq or use --force"
+        return 1
+    fi
+
+    if [[ "$bypass_permissions" == "true" ]] && ! command -v jq &>/dev/null; then
+        error "Cannot set bypass permissions without jq. Install jq first"
         return 1
     fi
 
@@ -191,6 +197,9 @@ install_cc_headless() {
                 warn "Note: $dest already exists (would need --force to overwrite or --merge to merge)"
             fi
         done
+        if [[ "$bypass_permissions" == "true" ]]; then
+            echo "Would enable bypass permissions mode in settings.json"
+        fi
         return 0
     fi
 
@@ -248,6 +257,14 @@ install_cc_headless() {
         success "Installed: $dest"
     done
 
+    # Add bypass permissions mode if requested
+    if [[ "$bypass_permissions" == "true" ]]; then
+        local settings_file="$claude_dir/settings.json"
+        jq '.permissions.defaultMode = "bypassPermissions"' "$settings_file" > "${settings_file}.tmp"
+        mv "${settings_file}.tmp" "$settings_file"
+        success "Enabled bypass permissions mode"
+    fi
+
     success "Installation complete!"
     echo ""
     echo "  Set your API key:"
@@ -274,10 +291,12 @@ ${C_BOLD}COMPONENTS:${C_RESET}
                    Installs to: ~/.claude.json, ~/.claude/
 
 ${C_BOLD}OPTIONS:${C_RESET}
-    -f, --force    Overwrite existing files
-    -m, --merge    Merge JSON configs with existing files (requires jq)
-    --dry-run      Show what would be installed without making changes
-    -h, --help     Show this help message
+    -f, --force           Overwrite existing files
+    -m, --merge           Merge JSON configs with existing files (requires jq)
+    --bypass-permissions  Enable bypass permissions mode (no prompts, requires jq)
+    --yolo                Alias for --bypass-permissions
+    --dry-run             Show what would be installed without making changes
+    -h, --help            Show this help message
 
 ${C_BOLD}EXAMPLES:${C_RESET}
     # Install cc-launcher (remote)
@@ -305,6 +324,7 @@ main() {
     local force="false"
     local merge="false"
     local dry_run="false"
+    local bypass_permissions="false"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -323,6 +343,10 @@ main() {
                 ;;
             --dry-run)
                 dry_run="true"
+                shift
+                ;;
+            --bypass-permissions|--yolo)
+                bypass_permissions="true"
                 shift
                 ;;
             -*)
@@ -365,7 +389,7 @@ main() {
             install_cc_launcher "$mode" "$force" "$dry_run"
             ;;
         cc-headless|headless)
-            install_cc_headless "$mode" "$force" "$merge" "$dry_run"
+            install_cc_headless "$mode" "$force" "$merge" "$dry_run" "$bypass_permissions"
             ;;
         *)
             error "Unknown component: $component"
