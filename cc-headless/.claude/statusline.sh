@@ -40,9 +40,97 @@ lines_removed=$(echo "$input" | jq -r '.cost.total_lines_removed // empty')
 # Get git branch and status (use full path for cd command)
 cd "$current_dir" 2>/dev/null || exit 1
 
+# ===== SESSION DETECTION =====
+# Detect active Claude sessions for this project (cross-platform)
+get_session_cwds() {
+    local pids
+    pids=$(pgrep -x claude 2>/dev/null | paste -sd, -)
+    [ -z "$pids" ] && return
+
+    if [ -d /proc ]; then
+        # Linux: fast /proc approach (~1.5ms)
+        for pid in $(pgrep -x claude 2>/dev/null); do
+            echo "$pid:$(readlink "/proc/$pid/cwd" 2>/dev/null)"
+        done
+    else
+        # macOS: batch lsof (~34ms)
+        lsof -a -d cwd -p "$pids" -Fn 2>/dev/null | awk '/^p/{pid=$0} /^n/{print substr(pid,2)":"substr($0,2)}'
+    fi
+}
+
+# Find the Claude process that is our ancestor (walk up process tree)
+find_claude_ancestor() {
+    local pid=$$
+    while [ "$pid" -gt 1 ]; do
+        local comm
+        if [ -d /proc ]; then
+            comm=$(cat "/proc/$pid/comm" 2>/dev/null)
+        else
+            comm=$(ps -o comm= -p "$pid" 2>/dev/null)
+        fi
+        if [ "$comm" = "claude" ]; then
+            echo "$pid"
+            return
+        fi
+        # Get parent PID
+        if [ -d /proc ]; then
+            pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null)
+        else
+            pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        fi
+    done
+}
+
+# Count sessions and find position
+sessions_in_dir=()
+my_claude_pid=$(find_claude_ancestor)
+
+while IFS=: read -r pid cwd; do
+    [ -z "$pid" ] && continue
+    if [ "$cwd" = "$current_dir" ]; then
+        sessions_in_dir+=("$pid")
+    fi
+done < <(get_session_cwds)
+
+# Ensure our own Claude ancestor is in the list (pgrep often misses the calling process)
+if [ -n "$my_claude_pid" ]; then
+    found=0
+    for pid in "${sessions_in_dir[@]}"; do
+        [ "$pid" = "$my_claude_pid" ] && found=1 && break
+    done
+    [ "$found" -eq 0 ] && sessions_in_dir+=("$my_claude_pid")
+fi
+
+# Sort by PID (ascending = started earlier)
+sorted_sessions=()
+while IFS= read -r line; do
+    sorted_sessions+=("$line")
+done < <(printf '%s\n' "${sessions_in_dir[@]}" | sort -n)
+
+# Find position and total
+session_total=${#sorted_sessions[@]}
+session_position=1
+for i in "${!sorted_sessions[@]}"; do
+    if [ "${sorted_sessions[$i]}" = "$my_claude_pid" ]; then
+        session_position=$((i + 1))
+        break
+    fi
+done
+
+# Get historical count by counting .jsonl session files directly
+# Claude Code encodes paths by replacing all non-alphanumeric chars with -
+# shellcheck disable=SC2001
+encoded_path=$(echo "$current_dir" | sed 's/[^a-zA-Z0-9]/-/g')
+project_dir="$HOME/.claude/projects/${encoded_path}"
+if [ -d "$project_dir" ]; then
+    historical_count=$(find "$project_dir" -maxdepth 1 -name "*.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+else
+    historical_count=0
+fi
+
 # Shorten directory path by replacing home directory with ~ (for display only)
 if [[ "$current_dir" == "$HOME"* ]]; then
-    current_dir="~${current_dir#$HOME}"
+    current_dir="~${current_dir#"$HOME"}"
 fi
 
 # Get current branch name
@@ -71,13 +159,8 @@ if [ -n "$branch" ]; then
 fi
 
 # Define color codes
-BOLD_CYAN='\033[1;36m'
-CYAN='\033[36m'
 GREEN='\033[32m'
 RED='\033[31m'
-YELLOW='\033[33m'
-MAGENTA='\033[35m'
-DIM='\033[2m'
 RESET='\033[0m'
 
 # Modern palette of 11 vibrant colors using 256-color mode for compatibility
@@ -139,20 +222,20 @@ if [ -n "$context_used" ] && [ -n "$context_max" ] && [ -n "$context_percent" ];
     # Background and text colors based on usage level (Purple gradient)
     if [ "$percent" -gt 80 ]; then
         BG_FILLED='\033[48;2;75;0;130m'    # Indigo
-        FG_FILLED='\033[97m'               # White text
+        FG_FILLED='\033[97m\033[1m'        # White text, bold
     elif [ "$percent" -gt 50 ]; then
         BG_FILLED='\033[48;2;138;43;226m'  # Blue violet
-        FG_FILLED='\033[97m'               # White text
+        FG_FILLED='\033[97m\033[1m'        # White text, bold
     else
         BG_FILLED='\033[48;2;147;112;219m' # Medium purple
-        FG_FILLED='\033[97m'               # White text
+        FG_FILLED='\033[97m\033[1m'        # White text, bold
     fi
     # Buffer zone color (darker gray/muted)
     BG_BUFFER='\033[48;2;60;60;70m'   # Dark slate gray for buffer
-    FG_BUFFER='\033[37m'              # Light gray text
+    FG_BUFFER='\033[37m\033[1m'       # Light gray text, bold
     # Free space color
     BG_FREE='\033[100m'               # Bright black (gray) background
-    FG_FREE='\033[97m'                # White text on gray
+    FG_FREE='\033[97m\033[1m'         # White text on gray, bold
 
     # Calculate positions: used | buffer | free
     # Buffer starts where free space would normally start (100% - buffer%)
@@ -198,9 +281,16 @@ else
 fi
 output="$output${BG_MODEL}${FG_MODEL} $model ${RESET}"
 
+# Show session info: a/b (c)
+if [ "$session_total" -gt 0 ]; then
+    BG_SESSION='\033[48;2;140;170;80m'  # Bright olive background
+    FG_SESSION='\033[30m\033[1m'        # Black text, bold
+    output="$output ${BG_SESSION}${FG_SESSION} ${session_position}/${session_total} (${historical_count}) ${RESET}"
+fi
+
 # Add directory with deterministic background color
 DIR_BG=$(path_to_bg_color "$original_dir")
-DIR_FG='\033[97m'  # White text
+DIR_FG='\033[97m\033[1m'  # White text, bold
 output="$output ${DIR_BG}${DIR_FG} $current_dir ${RESET}"
 
 # Add git info
