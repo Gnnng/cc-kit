@@ -4,6 +4,10 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
+  "containerEnv": {
+    "LANG": "en_US.UTF-8",
+    "LC_ALL": "en_US.UTF-8"
+  },
   "runArgs": ["--env-file", "${localWorkspaceFolder}/.devcontainer/.env"],
   "postCreateCommand": "./install.sh cc-headless --merge --yolo && ./install.sh cc-launcher",
   "remoteEnv": {

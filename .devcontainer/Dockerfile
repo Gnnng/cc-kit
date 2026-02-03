@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
-RUN apt-get update && apt-get install -y shellcheck jq && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y shellcheck jq tmux && rm -rf /var/lib/apt/lists/*
 
 USER vscode
 RUN curl -fsSL https://claude.ai/install.sh | bash
