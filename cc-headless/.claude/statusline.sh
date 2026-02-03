@@ -11,6 +11,7 @@ session_id=$(echo "$input" | jq -r '.session_id // empty')
 
 # Extract current directory
 current_dir=$(echo "$input" | jq -r '.workspace.current_dir')
+original_dir="$current_dir"  # Store for color generation
 
 # Extract context usage (if available)
 # Use used_percentage as source of truth (includes system, tools, MCP, messages)
@@ -78,6 +79,32 @@ YELLOW='\033[33m'
 MAGENTA='\033[35m'
 DIM='\033[2m'
 RESET='\033[0m'
+
+# Modern palette of 11 vibrant colors using 256-color mode for compatibility
+# Prime count for better hash distribution; avoids purple/orange/green/red (used elsewhere)
+DIR_COLORS=(
+    30    # Teal
+    168   # Pink
+    33    # Blue
+    173   # Coral
+    132   # Mauve
+    37    # Cyan
+    136   # Gold
+    25    # Navy
+    96    # Plum
+    24    # Deep Blue
+    133   # Orchid
+)
+
+# Generate deterministic background color from path
+# Maps path hash to one of 8 curated colors (256-color mode)
+path_to_bg_color() {
+    local path="$1"
+    local hash
+    hash=$(printf '%s' "$path" | cksum | cut -d' ' -f1)
+    local index=$((hash % ${#DIR_COLORS[@]}))
+    printf '\033[48;5;%sm' "${DIR_COLORS[$index]}"
+}
 
 # ===== BUILD OUTPUT =====
 output=""
@@ -171,8 +198,10 @@ else
 fi
 output="$output${BG_MODEL}${FG_MODEL} $model ${RESET}"
 
-# Add directory
-output="$output ${CYAN}$current_dir${RESET}"
+# Add directory with deterministic background color
+DIR_BG=$(path_to_bg_color "$original_dir")
+DIR_FG='\033[97m'  # White text
+output="$output ${DIR_BG}${DIR_FG} $current_dir ${RESET}"
 
 # Add git info
 if [ -n "$branch" ]; then
