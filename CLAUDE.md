@@ -4,4 +4,23 @@
 2. Use devcontainer to test the install script and other components
 3. Don't install scripts locally - it may cause unforeseen issues
 4. Use `$'...'` syntax for ANSI color codes (e.g., `C_RED=$'\033[31m'`)
-5. Rebuild devcontainer: `devcontainer up --workspace-folder . --remove-existing-container`
+
+## Devcontainer Commands
+
+```bash
+# Start devcontainer (reuses existing if available)
+devcontainer up --workspace-folder .
+
+# Rebuild devcontainer (removes existing)
+devcontainer up --workspace-folder . --remove-existing-container
+
+# Force clean rebuild of image (no cache)
+devcontainer build --workspace-folder . --no-cache
+
+# Execute command inside devcontainer
+devcontainer exec --workspace-folder . <command>
+
+# Examples:
+devcontainer exec --workspace-folder . tmux list-sessions
+devcontainer exec --workspace-folder . claude
+```
