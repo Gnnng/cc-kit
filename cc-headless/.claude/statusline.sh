@@ -290,7 +290,7 @@ fi
 
 # Add directory with deterministic background color
 DIR_BG=$(path_to_bg_color "$original_dir")
-DIR_FG='\033[97m\033[1m'  # White text, bold
+DIR_FG='\033[30m\033[1m'  # Black text, bold
 output="$output ${DIR_BG}${DIR_FG} $current_dir ${RESET}"
 
 # Add git info
