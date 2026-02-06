@@ -1,0 +1,28 @@
+{
+  "name": "cc-kit",
+  "owner": {
+    "name": "Gnnng"
+  },
+  "metadata": {
+    "description": "Claude Code toolkit - plugins and utilities for enhanced workflows",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cc-devcontainer",
+      "source": "./cc-devcontainer",
+      "description": "Devcontainer setup with Claude Code authentication for headless agents",
+      "version": "1.0.0",
+      "category": "setup",
+      "tags": ["devcontainer", "docker", "authentication", "setup"]
+    },
+    {
+      "name": "cc-hive",
+      "source": "./cc-hive",
+      "description": "Headless Isolated Virtual Environment - Manage coding agent sessions in devcontainer",
+      "version": "1.0.0",
+      "category": "productivity",
+      "tags": ["devcontainer", "tmux", "worktree", "headless"]
+    }
+  ]
+}

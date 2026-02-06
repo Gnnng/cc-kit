@@ -1,0 +1,9 @@
+{
+  "name": "cc-devcontainer",
+  "version": "1.0.0",
+  "description": "Devcontainer setup with Claude Code authentication for headless agents",
+  "author": {
+    "name": "Gnnng"
+  },
+  "keywords": ["devcontainer", "docker", "authentication", "headless", "setup"]
+}
