@@ -6,8 +6,8 @@ input=$(cat)
 # Extract model display name (fallback to model id if display_name not available)
 model=$(echo "$input" | jq -r '.model.display_name // .model.id')
 
-# Extract session ID
-session_id=$(echo "$input" | jq -r '.session_id // empty')
+# Extract session ID (unused - Claude shows it on exit)
+# session_id=$(echo "$input" | jq -r '.session_id // empty')
 
 # Extract current directory
 current_dir=$(echo "$input" | jq -r '.workspace.current_dir')
@@ -162,6 +162,14 @@ fi
 GREEN='\033[32m'
 RED='\033[31m'
 RESET='\033[0m'
+BLUE_FG='\033[38;5;33m'  # Docker blue for container icon
+
+# ===== CONTAINER DETECTION =====
+# Detect if running inside a container (Docker, devcontainer, etc.)
+is_container=0
+if [ -f /.dockerenv ] || [ -n "$REMOTE_CONTAINERS" ] || [ -n "$CODESPACES" ]; then
+    is_container=1
+fi
 
 # Modern palette of 11 vibrant colors using 256-color mode for compatibility
 # Prime count for better hash distribution; avoids purple/orange/green/red (used elsewhere)
@@ -191,6 +199,11 @@ path_to_bg_color() {
 
 # ===== BUILD OUTPUT =====
 output=""
+
+# Add container icon at the very start (if in container)
+if [ "$is_container" -eq 1 ]; then
+    output="${BLUE_FG}⬢${RESET} "
+fi
 
 # Add context bar first (left side)
 bar_width=12
@@ -257,7 +270,7 @@ if [ -n "$context_used" ] && [ -n "$context_max" ] && [ -n "$context_percent" ];
         fi
     done
     bar="${bar}${RESET}"
-    output="$bar "
+    output="$output$bar "
 fi
 
 # Add model name with color based on model tier
@@ -339,10 +352,10 @@ else
     fi
 fi
 
-# Add session ID at the end (very dim gray)
-if [ -n "$session_id" ]; then
-    VERY_DIM='\033[38;2;70;70;70m'  # Dark gray text
-    output="$output ${VERY_DIM}${session_id}${RESET}"
-fi
+# Session ID omitted - Claude shows it on exit
+# if [ -n "$session_id" ]; then
+#     VERY_DIM='\033[38;2;70;70;70m'  # Dark gray text
+#     output="$output ${VERY_DIM}${session_id}${RESET}"
+# fi
 
 echo -e "$output"
