@@ -45,6 +45,6 @@ The custom statusline (`~/.claude/statusline.sh`) displays:
 | Session count | `position/total (historical)` - active sessions in directory |
 | Directory | Working directory with deterministic background color |
 | Git info | Branch, dirty indicator, ahead/behind, line changes |
-| Session ID | Dimmed session identifier |
+| Container | Blue hexagon icon when running inside a container |
 
 The statusline works on both Linux and macOS.
