@@ -65,6 +65,7 @@ mkdir -p .devcontainer
 Read and write the templates:
 - [templates/Dockerfile](templates/Dockerfile) → `.devcontainer/Dockerfile`
 - [templates/devcontainer.json](templates/devcontainer.json) → `.devcontainer/devcontainer.json`
+- [templates/tmux.conf](templates/tmux.conf) → `.devcontainer/tmux.conf`
 
 If `--name` was provided, update the `"name"` field in devcontainer.json.
 
@@ -86,5 +87,6 @@ Show:
 
 ## Template Files
 
-- [templates/Dockerfile](templates/Dockerfile) - Base Ubuntu image with tmux, jq, Claude CLI
-- [templates/devcontainer.json](templates/devcontainer.json) - Devcontainer config with env-file and cc-headless setup
+- [templates/Dockerfile](templates/Dockerfile) - Base Ubuntu image with tmux and jq
+- [templates/tmux.conf](templates/tmux.conf) - tmux config with mouse support
+- [templates/devcontainer.json](templates/devcontainer.json) - Devcontainer config with env-file, cc-headless setup, and Claude CLI install

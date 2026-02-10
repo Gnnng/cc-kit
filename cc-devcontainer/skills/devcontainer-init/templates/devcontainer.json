@@ -9,6 +9,6 @@
     "LC_ALL": "en_US.UTF-8"
   },
   "runArgs": ["--env-file", "${localWorkspaceFolder}/.devcontainer/.env"],
-  "postCreateCommand": "curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-headless --merge --yolo",
+  "postCreateCommand": "curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-headless --merge --yolo && curl -fsSL https://claude.ai/install.sh | bash",
   "remoteUser": "vscode"
 }
