@@ -40,94 +40,6 @@ lines_removed=$(echo "$input" | jq -r '.cost.total_lines_removed // empty')
 # Get git branch and status (use full path for cd command)
 cd "$current_dir" 2>/dev/null || exit 1
 
-# ===== SESSION DETECTION =====
-# Detect active Claude sessions for this project (cross-platform)
-get_session_cwds() {
-    local pids
-    pids=$(pgrep -x claude 2>/dev/null | paste -sd, -)
-    [ -z "$pids" ] && return
-
-    if [ -d /proc ]; then
-        # Linux: fast /proc approach (~1.5ms)
-        for pid in $(pgrep -x claude 2>/dev/null); do
-            echo "$pid:$(readlink "/proc/$pid/cwd" 2>/dev/null)"
-        done
-    else
-        # macOS: batch lsof (~34ms)
-        lsof -a -d cwd -p "$pids" -Fn 2>/dev/null | awk '/^p/{pid=$0} /^n/{print substr(pid,2)":"substr($0,2)}'
-    fi
-}
-
-# Find the Claude process that is our ancestor (walk up process tree)
-find_claude_ancestor() {
-    local pid=$$
-    while [ "$pid" -gt 1 ]; do
-        local comm
-        if [ -d /proc ]; then
-            comm=$(cat "/proc/$pid/comm" 2>/dev/null)
-        else
-            comm=$(ps -o comm= -p "$pid" 2>/dev/null)
-        fi
-        if [ "$comm" = "claude" ]; then
-            echo "$pid"
-            return
-        fi
-        # Get parent PID
-        if [ -d /proc ]; then
-            pid=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null)
-        else
-            pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-        fi
-    done
-}
-
-# Count sessions and find position
-sessions_in_dir=()
-my_claude_pid=$(find_claude_ancestor)
-
-while IFS=: read -r pid cwd; do
-    [ -z "$pid" ] && continue
-    if [ "$cwd" = "$current_dir" ]; then
-        sessions_in_dir+=("$pid")
-    fi
-done < <(get_session_cwds)
-
-# Ensure our own Claude ancestor is in the list (pgrep often misses the calling process)
-if [ -n "$my_claude_pid" ]; then
-    found=0
-    for pid in "${sessions_in_dir[@]}"; do
-        [ "$pid" = "$my_claude_pid" ] && found=1 && break
-    done
-    [ "$found" -eq 0 ] && sessions_in_dir+=("$my_claude_pid")
-fi
-
-# Sort by PID (ascending = started earlier)
-sorted_sessions=()
-while IFS= read -r line; do
-    sorted_sessions+=("$line")
-done < <(printf '%s\n' "${sessions_in_dir[@]}" | sort -n)
-
-# Find position and total
-session_total=${#sorted_sessions[@]}
-session_position=1
-for i in "${!sorted_sessions[@]}"; do
-    if [ "${sorted_sessions[$i]}" = "$my_claude_pid" ]; then
-        session_position=$((i + 1))
-        break
-    fi
-done
-
-# Get historical count by counting .jsonl session files directly
-# Claude Code encodes paths by replacing all non-alphanumeric chars with -
-# shellcheck disable=SC2001
-encoded_path=$(echo "$current_dir" | sed 's/[^a-zA-Z0-9]/-/g')
-project_dir="$HOME/.claude/projects/${encoded_path}"
-if [ -d "$project_dir" ]; then
-    historical_count=$(find "$project_dir" -maxdepth 1 -name "*.jsonl" 2>/dev/null | wc -l | tr -d ' ')
-else
-    historical_count=0
-fi
-
 # Shorten directory path by replacing home directory with ~ (for display only)
 if [[ "$current_dir" == "$HOME"* ]]; then
     current_dir="~${current_dir#"$HOME"}"
@@ -294,11 +206,31 @@ else
 fi
 output="$output${BG_MODEL}${FG_MODEL} $model ${RESET}"
 
-# Show session info: a/b (c)
-if [ "$session_total" -gt 0 ]; then
-    BG_SESSION='\033[48;2;140;170;80m'  # Bright olive background
-    FG_SESSION='\033[30m\033[1m'        # Black text, bold
-    output="$output ${BG_SESSION}${FG_SESSION} ${session_position}/${session_total} (${historical_count}) ${RESET}"
+# Show Claude Code version with update indicator
+cc_version=$(echo "$input" | jq -r '.version // empty')
+if [ -n "$cc_version" ]; then
+    # Check disk binary version (cached for 5 minutes)
+    cache="/tmp/claude-disk-version"
+    claude_bin="${HOME}/.local/bin/claude"
+    [ ! -x "$claude_bin" ] && claude_bin=$(command -v claude 2>/dev/null)
+    if [ -n "$claude_bin" ]; then
+        if [ ! -f "$cache" ] || [ $(($(date +%s) - $(stat -f %m "$cache" 2>/dev/null || stat -c %Y "$cache" 2>/dev/null))) -gt 300 ]; then
+            "$claude_bin" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' > "$cache"
+        fi
+    fi
+    disk_version=$(cat "$cache" 2>/dev/null)
+
+    if [ -n "$disk_version" ] && [ "$disk_version" != "$cc_version" ]; then
+        # Update available: highlighted amber badge with arrow
+        BG_VERSION='\033[48;2;180;140;20m'  # Amber background
+        FG_VERSION='\033[30m\033[1m'        # Black text, bold
+        output="$output ${BG_VERSION}${FG_VERSION} v${cc_version} ↑ ${RESET}"
+    else
+        # Up to date: dimmed badge
+        BG_VERSION='\033[2m\033[48;2;50;50;60m'  # Dimmed dark slate
+        FG_VERSION='\033[37m'                     # Gray text
+        output="$output ${BG_VERSION}${FG_VERSION} v${cc_version} ${RESET}"
+    fi
 fi
 
 # Add directory with deterministic background color
