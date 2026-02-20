@@ -22,10 +22,10 @@ MODELS_MOONSHOT="kimi-k2-turbo-preview"
 MODELS_ANTHROPIC="claude-sonnet-4-5"
 MODELS_DEEPSEEK="deepseek-chat"
 MODELS_DEEPSEEK_FAST="deepseek-chat"
-MODELS_ZHIPU="GLM-4.7"
+MODELS_ZHIPU="glm-5"
 MODELS_ZHIPU_FAST="GLM-4.7-Flash"
-MODELS_MINIMAX="MiniMax-M2.1"
-MODELS_MINIMAX_FAST="MiniMax-M2.1-lightning"
+MODELS_MINIMAX="MiniMax-M2.5"
+MODELS_MINIMAX_FAST="MiniMax-M2.5-highspeed"
 
 # Get provider URL
 get_provider_url() {
@@ -401,6 +401,10 @@ main() {
         local custom_url="$first_arg"
         local inline_key="$second_arg"
         local custom_model="${3:-}"
+        # Don't treat flags as model names
+        if [[ "$custom_model" == --* ]]; then
+            custom_model=""
+        fi
 
         # Shift args for remaining claude args
         if [[ $# -ge 3 ]] && [[ -n "$custom_model" ]]; then
