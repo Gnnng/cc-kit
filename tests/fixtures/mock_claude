@@ -1,0 +1,20 @@
+#!/bin/bash
+# Mock claude binary for testing cc-launcher
+# Captures environment variables and arguments to $CC_TEST_CAPTURE_DIR
+
+# shellcheck disable=SC2154  # CC_TEST_CAPTURE_DIR is set by the test harness
+
+# Capture relevant environment variables
+env \
+    | grep -E '^(ANTHROPIC_|CLAUDE_CODE_|MOONSHOT_|DEEPSEEK_|ZAI_|ZHIPUAI_|MINIMAX_)' \
+    | sort > "$CC_TEST_CAPTURE_DIR/env" || true
+
+# Capture argument count
+echo "$#" > "$CC_TEST_CAPTURE_DIR/argc"
+
+# Capture each argument on its own line (empty file when no args)
+for arg in "$@"; do
+    printf '%s\n' "$arg"
+done > "$CC_TEST_CAPTURE_DIR/args"
+
+exit 0
