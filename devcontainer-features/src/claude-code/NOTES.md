@@ -32,10 +32,18 @@ A Docker volume is mounted at `/var/lib/claude` and symlinked to `~/.claude` and
 
 ## Authentication
 
-Set your API key or OAuth token via environment variables in `devcontainer.json`:
+Pass your credentials via `remoteEnv` in `devcontainer.json`:
 
 ```json
 "remoteEnv": {
   "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+}
+```
+
+Or with OAuth:
+
+```json
+"remoteEnv": {
+  "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
 }
 ```
