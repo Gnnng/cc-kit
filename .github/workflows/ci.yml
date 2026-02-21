@@ -18,10 +18,11 @@ jobs:
           bash -n install.sh
           bash -n tests/run_tests.sh
           bash -n tests/test_cc_launcher.sh
+          bash -n tests/test_install.sh
           bash -n tests/fixtures/mock_claude
 
       - name: ShellCheck
-        run: shellcheck cc-launcher install.sh tests/run_tests.sh tests/test_cc_launcher.sh tests/fixtures/mock_claude
+        run: shellcheck cc-launcher install.sh tests/run_tests.sh tests/test_cc_launcher.sh tests/test_install.sh tests/fixtures/mock_claude
 
   test:
     runs-on: ubuntu-latest

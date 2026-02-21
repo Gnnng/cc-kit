@@ -140,6 +140,9 @@ run_launcher() {
 # shellcheck source=tests/test_cc_launcher.sh
 source "$SCRIPT_DIR/test_cc_launcher.sh"
 
+# shellcheck source=tests/test_install.sh
+source "$SCRIPT_DIR/test_install.sh"
+
 # ---------------------------------------------------------------------------
 # Discover and run tests
 # ---------------------------------------------------------------------------

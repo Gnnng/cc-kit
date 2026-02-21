@@ -1,0 +1,18 @@
+{
+    "headless": {
+        "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+        "features": {
+            "claude-code": {
+                "headless": true
+            }
+        }
+    },
+    "launcher": {
+        "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+        "features": {
+            "claude-code": {
+                "launcher": true
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "claude-code",
+  "version": "1.0.0",
+  "name": "Claude Code",
+  "description": "Install Claude Code CLI with optional cc-kit components (cc-launcher, cc-headless)",
+  "documentationURL": "https://github.com/Gnnng/cc-kit",
+  "options": {
+    "launcher": {
+      "type": "boolean",
+      "default": false,
+      "description": "Install cc-launcher to /usr/local/bin/"
+    },
+    "headless": {
+      "type": "boolean",
+      "default": false,
+      "description": "Install cc-headless config to user's ~/.claude/"
+    }
+  },
+  "mounts": [
+    {
+      "source": "claude-${devcontainerId}",
+      "target": "/var/lib/claude",
+      "type": "volume"
+    }
+  ],
+  "dependsOn": {
+    "ghcr.io/devcontainers/features/common-utils": {}
+  }
+}

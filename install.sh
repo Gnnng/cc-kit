@@ -274,8 +274,9 @@ install_cc_headless() {
 
         if [[ "$merge" == "true" ]] && [[ -f "$dest" ]]; then
             # Merge existing with new (new wins on conflicts)
-            merge_json_files "$dest" "$new_content" > "${dest}.tmp"
-            mv "${dest}.tmp" "$dest"
+            local merged
+            merged=$(merge_json_files "$dest" "$new_content")
+            echo "$merged" > "$dest"
             success "Merged: $dest"
         else
             echo "$new_content" > "$dest"
@@ -295,8 +296,9 @@ install_cc_headless() {
     # Add bypass permissions mode if requested
     if [[ "$bypass_permissions" == "true" ]]; then
         local settings_file="$claude_dir/settings.json"
-        jq '.permissions.defaultMode = "bypassPermissions"' "$settings_file" > "${settings_file}.tmp"
-        mv "${settings_file}.tmp" "$settings_file"
+        local updated
+        updated=$(jq '.permissions.defaultMode = "bypassPermissions"' "$settings_file")
+        echo "$updated" > "$settings_file"
         success "Enabled bypass permissions mode"
     fi
 

@@ -1,0 +1,24 @@
+name: Publish Dev Container Features
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish features
+        uses: devcontainers/action@v1
+        with:
+          publish-features: true
+          base-path-to-features: devcontainer-features/src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
