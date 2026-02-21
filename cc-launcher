@@ -400,18 +400,26 @@ main() {
         # Custom URL mode
         local custom_url="$first_arg"
         local inline_key="$second_arg"
-        local custom_model="${3:-}"
-        # Don't treat flags as model names
-        if [[ "$custom_model" == --* ]]; then
-            custom_model=""
+        local raw_third="${3:-}"
+        local custom_model=""
+        # $3 is a model name only if it doesn't look like a flag or separator
+        if [[ -n "$raw_third" ]] && [[ "$raw_third" != -* ]]; then
+            custom_model="$raw_third"
         fi
 
         # Shift args for remaining claude args
-        if [[ $# -ge 3 ]] && [[ -n "$custom_model" ]]; then
+        if [[ -n "$custom_model" ]]; then
+            shift 3
+        elif [[ "$raw_third" == "--" ]]; then
             shift 3
         elif [[ $# -ge 2 ]]; then
             shift 2
         elif [[ $# -ge 1 ]]; then
+            shift
+        fi
+
+        # Strip optional "--" separator between launcher args and claude args
+        if [[ "${1:-}" == "--" ]]; then
             shift
         fi
 
@@ -462,7 +470,14 @@ main() {
         # Shift args for remaining claude args
         if [[ $# -ge 2 ]] && [[ -n "$custom_model" ]]; then
             shift 2
+        elif [[ "$second_arg" == "--" ]]; then
+            shift 2
         elif [[ $# -ge 1 ]]; then
+            shift
+        fi
+
+        # Strip optional "--" separator between launcher args and claude args
+        if [[ "${1:-}" == "--" ]]; then
             shift
         fi
 
@@ -488,7 +503,11 @@ main() {
 
     # Preset provider mode
     local provider="$first_arg"
-    local inline_key="$second_arg"
+    local inline_key=""
+    # Second arg is an inline key only if it doesn't look like a flag
+    if [[ -n "$second_arg" ]] && [[ "$second_arg" != -* ]]; then
+        inline_key="$second_arg"
+    fi
     local provider_mode=""
     local provider_base=""
 
@@ -530,7 +549,11 @@ main() {
         if [[ $# -gt 0 ]]; then
             shift
         fi
-        if [[ -n "$second_arg" ]]; then
+        if [[ -n "$inline_key" ]]; then
+            shift
+        fi
+        # Strip optional "--" separator
+        if [[ "${1:-}" == "--" ]]; then
             shift
         fi
 
@@ -560,7 +583,11 @@ main() {
     if [[ $# -gt 0 ]]; then
         shift
     fi
-    if [[ -n "$second_arg" ]]; then
+    if [[ -n "$second_arg" ]] && [[ "$second_arg" != -* ]]; then
+        shift
+    fi
+    # Strip optional "--" separator between launcher args and claude args
+    if [[ "${1:-}" == "--" ]]; then
         shift
     fi
 
