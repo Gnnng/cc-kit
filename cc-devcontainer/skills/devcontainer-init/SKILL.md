@@ -42,7 +42,7 @@ If `.devcontainer/` exists, ask user if they want to:
 Run the auth detection script from [../../scripts/detect-auth.sh](../../scripts/detect-auth.sh):
 
 ```bash
-bash <script-path>/detect-auth.sh --env-file .devcontainer/.env
+bash <script-path>/detect-auth.sh
 ```
 
 The script checks (in priority order):
@@ -62,19 +62,20 @@ mkdir -p .devcontainer
 
 ### 5. Copy template files
 
-Read and write the templates:
-- [templates/Dockerfile](templates/Dockerfile) → `.devcontainer/Dockerfile`
+Read and write the template:
 - [templates/devcontainer.json](templates/devcontainer.json) → `.devcontainer/devcontainer.json`
-- [templates/tmux.conf](templates/tmux.conf) → `.devcontainer/tmux.conf`
 
 If `--name` was provided, update the `"name"` field in devcontainer.json.
 
-### 6. Update .gitignore
+### 6. Inject authentication into devcontainer.json
 
-Add these entries if not already present:
-```
-.devcontainer/.env
-```
+Based on the auth method detected in step 3, add a `remoteEnv` block to the generated `devcontainer.json`:
+
+- OAuth: `"remoteEnv": { "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}" }`
+- Enterprise: `"remoteEnv": { "ANTHROPIC_AUTH_TOKEN": "${localEnv:ANTHROPIC_AUTH_TOKEN}" }`
+- API key: `"remoteEnv": { "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}" }`
+
+If no auth detected, skip this step.
 
 ### 7. Report success
 
@@ -87,6 +88,4 @@ Show:
 
 ## Template Files
 
-- [templates/Dockerfile](templates/Dockerfile) - Base Ubuntu image with tmux and jq
-- [templates/tmux.conf](templates/tmux.conf) - tmux config with mouse support
-- [templates/devcontainer.json](templates/devcontainer.json) - Devcontainer config with env-file, cc-headless setup, and Claude CLI install
+- [templates/devcontainer.json](templates/devcontainer.json) - Devcontainer config with claude-code feature and headless/launcher setup

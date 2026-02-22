@@ -1,0 +1,15 @@
+{
+  "name": "${templateOption:name}",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/Gnnng/cc-kit/claude-code:1": {
+      "headless": ${templateOption:headless},
+      "launcher": ${templateOption:launcher}
+    }
+  },
+  "remoteEnv": {
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
+  },
+  "remoteUser": "vscode"
+}
