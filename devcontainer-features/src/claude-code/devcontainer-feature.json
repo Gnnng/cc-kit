@@ -1,6 +1,6 @@
 {
   "id": "claude-code",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Claude Code",
   "description": "Install Claude Code CLI with optional cc-kit components (cc-launcher, cc-headless)",
   "documentationURL": "https://github.com/Gnnng/cc-kit",

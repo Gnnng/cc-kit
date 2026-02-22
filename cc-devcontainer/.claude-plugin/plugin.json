@@ -1,6 +1,6 @@
 {
   "name": "cc-devcontainer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Devcontainer setup with Claude Code authentication for headless agents",
   "author": {
     "name": "Gnnng"

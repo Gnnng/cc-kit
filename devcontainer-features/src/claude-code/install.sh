@@ -3,6 +3,24 @@ set -e
 
 CCKIT_INSTALLER="https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh"
 
+# Install packages using the detected package manager.
+# NOTE: Package names are assumed to be the same across distros (e.g., "tmux").
+# If a package has different names (e.g., libc-dev vs libc6-dev), add a mapping.
+install_packages() {
+    if type apt-get > /dev/null 2>&1; then
+        apt-get update -y && apt-get install -y --no-install-recommends "$@" && rm -rf /var/lib/apt/lists/*
+    elif type dnf > /dev/null 2>&1; then
+        dnf install -y --refresh "$@"
+    elif type yum > /dev/null 2>&1; then
+        yum install -y "$@"
+    elif type apk > /dev/null 2>&1; then
+        apk add --no-cache "$@"
+    fi
+}
+
+# Install tmux (used by Claude Code for session management)
+install_packages tmux
+
 # Resolve the remote (non-root) user
 USERNAME="${_REMOTE_USER:-"automatic"}"
 if [ "$USERNAME" = "auto" ] || [ "$USERNAME" = "automatic" ]; then
