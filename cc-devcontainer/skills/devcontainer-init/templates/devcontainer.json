@@ -8,10 +8,5 @@
       "launcher": true
     }
   },
-  "containerEnv": {
-    "LANG": "en_US.UTF-8",
-    "LC_ALL": "en_US.UTF-8"
-  },
-  "runArgs": ["--env-file", "${localWorkspaceFolder}/.devcontainer/.env"],
   "remoteUser": "vscode"
 }

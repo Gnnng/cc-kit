@@ -8,10 +8,8 @@
       "launcher": ${templateOption:launcher}
     }
   },
-  "containerEnv": {
-    "LANG": "en_US.UTF-8",
-    "LC_ALL": "en_US.UTF-8"
+  "remoteEnv": {
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
   },
-  "runArgs": ["--env-file", "${localWorkspaceFolder}/.devcontainer/.env"],
   "remoteUser": "vscode"
 }

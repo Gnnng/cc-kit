@@ -1,16 +1,6 @@
 ## Getting Started
 
-After applying this template, create a `.devcontainer/.env` file with your credentials:
-
-```bash
-# Option 1: API key
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Option 2: OAuth token
-CLAUDE_CODE_OAUTH_TOKEN=oat-...
-```
-
-Then start the devcontainer:
+Start the devcontainer:
 
 ```bash
 devcontainer up --workspace-folder .
@@ -26,13 +16,19 @@ devcontainer up --workspace-folder .
 
 ## Authentication
 
-The `.env` file is passed into the container via `--env-file`. Add `.devcontainer/.env` to your `.gitignore` to avoid committing secrets.
-
-Alternatively, use `remoteEnv` in `devcontainer.json` to forward host environment variables:
+Use `remoteEnv` in `devcontainer.json` to forward host environment variables:
 
 ```json
 "remoteEnv": {
   "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+}
+```
+
+Or with OAuth:
+
+```json
+"remoteEnv": {
+  "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
 }
 ```
 
