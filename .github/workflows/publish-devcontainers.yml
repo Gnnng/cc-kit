@@ -21,6 +21,7 @@ jobs:
         with:
           publish-features: true
           base-path-to-features: devcontainer-features/src
+          generate-docs: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -29,5 +30,6 @@ jobs:
         with:
           publish-templates: true
           base-path-to-templates: devcontainer-templates/src
+          generate-docs: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
