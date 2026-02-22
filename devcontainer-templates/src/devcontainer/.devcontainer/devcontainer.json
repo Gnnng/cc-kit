@@ -1,11 +1,11 @@
 {
-  "name": "claude-devcontainer",
+  "name": "${templateOption:name}",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/Gnnng/cc-kit/claude-code:1": {
-      "headless": true,
-      "launcher": true
+      "headless": ${templateOption:headless},
+      "launcher": ${templateOption:launcher}
     }
   },
   "containerEnv": {

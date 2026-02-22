@@ -62,9 +62,8 @@ mkdir -p .devcontainer
 
 ### 5. Copy template files
 
-Read and write the templates:
+Read and write the template:
 - [templates/devcontainer.json](templates/devcontainer.json) → `.devcontainer/devcontainer.json`
-- [templates/tmux.conf](templates/tmux.conf) → `.devcontainer/tmux.conf`
 
 If `--name` was provided, update the `"name"` field in devcontainer.json.
 
@@ -87,4 +86,3 @@ Show:
 ## Template Files
 
 - [templates/devcontainer.json](templates/devcontainer.json) - Devcontainer config with claude-code feature, env-file, and headless/launcher setup
-- [templates/tmux.conf](templates/tmux.conf) - tmux config with mouse support (copied to `~/.tmux.conf` via postCreateCommand)

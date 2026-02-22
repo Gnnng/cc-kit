@@ -1,0 +1,27 @@
+{
+  "id": "devcontainer",
+  "version": "1.0.0",
+  "name": "Claude Code",
+  "description": "Ubuntu container with Claude Code CLI, cc-headless, and cc-launcher",
+  "documentationURL": "https://github.com/Gnnng/cc-kit",
+  "publisher": "Gnnng",
+  "keywords": ["claude", "claude-code", "ai", "headless"],
+  "platforms": ["Any"],
+  "options": {
+    "name": {
+      "type": "string",
+      "description": "Container name",
+      "default": "claude-devcontainer"
+    },
+    "headless": {
+      "type": "boolean",
+      "description": "Install cc-headless config (bypass-permissions mode)",
+      "default": true
+    },
+    "launcher": {
+      "type": "boolean",
+      "description": "Install cc-launcher",
+      "default": true
+    }
+  }
+}

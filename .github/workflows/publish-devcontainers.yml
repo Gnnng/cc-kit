@@ -1,4 +1,4 @@
-name: Publish Dev Container Features
+name: Publish Dev Container Features & Templates
 
 on:
   release:
@@ -20,5 +20,13 @@ jobs:
         with:
           publish-features: true
           base-path-to-features: devcontainer-features/src
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish templates
+        uses: devcontainers/action@v1
+        with:
+          publish-templates: true
+          base-path-to-templates: devcontainer-templates/src
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

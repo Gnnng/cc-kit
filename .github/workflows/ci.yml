@@ -28,6 +28,10 @@ jobs:
       - name: Validate feature JSON
         run: jq . devcontainer-features/src/claude-code/devcontainer-feature.json
 
+      - name: Validate template JSON
+        run: |
+          jq . devcontainer-templates/src/devcontainer/devcontainer-template.json
+
   test:
     runs-on: ubuntu-latest
     steps:

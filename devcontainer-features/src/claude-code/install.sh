@@ -22,6 +22,7 @@ install_packages() {
 install_packages tmux
 
 # Resolve the remote (non-root) user
+# (needed before writing tmux config and installing Claude Code)
 USERNAME="${_REMOTE_USER:-"automatic"}"
 if [ "$USERNAME" = "auto" ] || [ "$USERNAME" = "automatic" ]; then
     USERNAME=""
@@ -42,6 +43,10 @@ if [ "$USERNAME" = "root" ]; then
 else
     USER_HOME="/home/$USERNAME"
 fi
+
+# Write default tmux config for the target user
+echo "set -g mouse on" > "$USER_HOME/.tmux.conf"
+chown "$USERNAME:$USERNAME" "$USER_HOME/.tmux.conf"
 
 echo "Installing Claude Code for user: $USERNAME"
 
