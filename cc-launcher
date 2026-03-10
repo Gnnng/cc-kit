@@ -445,6 +445,8 @@ main() {
 
         # Disable telemetry and non-essential traffic for privacy
         export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+        # Disable attribution header that changes every request and breaks prompt caching for proxies
+        export CLAUDE_CODE_ATTRIBUTION_HEADER=0
 
         exec claude "$@"
     fi
@@ -497,6 +499,8 @@ main() {
 
         # Disable telemetry and non-essential traffic for privacy
         export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+        # Disable attribution header that changes every request and breaks prompt caching for proxies
+        export CLAUDE_CODE_ATTRIBUTION_HEADER=0
 
         exec claude "$@"
     fi
@@ -637,6 +641,10 @@ main() {
 
     # Disable telemetry and non-essential traffic for privacy
     export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+    # Disable attribution header that changes every request and breaks prompt caching for proxies
+    if [[ "$provider_base" != "anthropic" ]]; then
+        export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+    fi
 
     exec claude "$@"
 }
