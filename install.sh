@@ -154,41 +154,6 @@ merge_json_files() {
     jq -s '.[0] * .[1]' "$existing" - <<< "$new_content"
 }
 
-# Install a plugin via Claude Code's native plugin system
-install_plugin() {
-    local plugin_name="$1"
-    local dry_run="$2"
-    local marketplace_url="https://github.com/Gnnng/cc-kit"
-
-    info "Installing $plugin_name plugin..."
-
-    if [[ "$dry_run" == "true" ]]; then
-        echo "Would add marketplace: $marketplace_url"
-        echo "Would install plugin: $plugin_name"
-        return 0
-    fi
-
-    # Check if claude CLI is available
-    if ! command -v claude &>/dev/null; then
-        error "Claude CLI not found. Please install Claude Code first."
-        return 1
-    fi
-
-    # Add marketplace if not already added
-    if ! claude plugin marketplace list 2>/dev/null | grep -q "cc-kit"; then
-        info "Adding cc-kit marketplace..."
-        claude plugin marketplace add "$marketplace_url"
-        success "Added marketplace: cc-kit"
-    fi
-
-    # Install plugin
-    claude plugin install "$plugin_name"
-    success "Installed plugin: $plugin_name"
-
-    echo ""
-    echo "  Plugin ${C_CYAN}$plugin_name${C_RESET} is now available in Claude Code"
-}
-
 # Install cc-headless
 install_cc_headless() {
     local mode="$1"
@@ -327,9 +292,6 @@ ${C_BOLD}COMPONENTS:${C_RESET}
     ${C_CYAN}cc-headless${C_RESET}      Configuration for headless/API-only mode
                      Installs to: ~/.claude.json, ~/.claude/
 
-    ${C_CYAN}cc-devcontainer${C_RESET}  Plugin for devcontainer setup with Claude auth
-                     Installs via: claude plugin install
-
 ${C_BOLD}OPTIONS:${C_RESET}
     -f, --force           Overwrite existing files
     -m, --merge           Merge JSON configs with existing files (requires jq)
@@ -431,13 +393,10 @@ main() {
         cc-headless|headless)
             install_cc_headless "$mode" "$force" "$merge" "$dry_run" "$bypass_permissions"
             ;;
-        cc-devcontainer|devcontainer)
-            install_plugin "cc-devcontainer" "$dry_run"
-            ;;
         *)
             error "Unknown component: $component"
             echo ""
-            echo "Available components: cc-launcher, cc-headless, cc-devcontainer"
+            echo "Available components: cc-launcher, cc-headless"
             echo "Run with --help for usage"
             exit 1
             ;;

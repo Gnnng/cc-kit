@@ -1,30 +1,8 @@
 # cc-kit
 
-A toolkit and plugin marketplace for Claude Code. Some components are installable plugins (via `claude plugin install`), others are standalone scripts or config files installed via curl.
-
-## Plugin Marketplace
-
-cc-kit doubles as a [Claude Code plugin marketplace](https://docs.anthropic.com/en/docs/claude-code/plugins). Plugins provide slash-command skills that run inside Claude Code. Not everything in cc-kit is a plugin — cc-launcher and cc-headless are standalone and installed separately.
-
-```bash
-# Add the marketplace
-claude plugin marketplace add https://github.com/Gnnng/cc-kit
-
-# Install a plugin
-claude plugin install cc-devcontainer
-```
-
-### Available Plugins
-
-| Plugin | Description |
-|--------|-------------|
-| `cc-devcontainer` | Devcontainer setup with Claude Code authentication for headless agents |
+A toolkit for Claude Code — standalone scripts and config files installed via curl.
 
 ## Installation
-
-### Standalone components (curl)
-
-cc-launcher and cc-headless are not plugins — install them with the install script:
 
 ```bash
 # Install cc-launcher
@@ -32,15 +10,6 @@ curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash
 
 # Install cc-headless config
 curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-headless
-```
-
-### Plugins
-
-Plugins can be installed via the marketplace (see above) or with the install script:
-
-```bash
-# Install cc-devcontainer plugin
-curl -fsSL https://raw.githubusercontent.com/Gnnng/cc-kit/main/install.sh | bash -s cc-devcontainer
 ```
 
 ### Options
@@ -65,7 +34,7 @@ See component-specific sections below for manual installation steps.
 |-----------|------|-------------|
 | [cc-launcher](#cc-launcher) | Standalone script | Multi-provider launcher - switch between Anthropic and alternative backends |
 | [cc-headless](#cc-headless) | Config files | Configuration for headless/API-only Claude Code sessions |
-| [cc-devcontainer](#cc-devcontainer) | Plugin | Devcontainer setup and troubleshooting with auth detection |
+| [detect-auth](#detect-auth) | Utility script | Detect Claude Code credentials and export them as env vars |
 
 ---
 
@@ -160,27 +129,21 @@ See [cc-headless/README.md](cc-headless/README.md) for more details.
 
 ---
 
-## cc-devcontainer
+## detect-auth
 
-Plugin for initializing and troubleshooting devcontainers with Claude Code authentication. Provides two skills: `/devcontainer-init` and `/devcontainer-troubleshoot`.
-
-### Authentication Detection
-
-The plugin automatically detects your Claude Code credentials (in priority order):
+[`scripts/detect-auth.sh`](scripts/detect-auth.sh) detects your Claude Code credentials and outputs them as env vars — useful for passing auth into VMs or containers. Checks in priority order:
 
 1. **OAuth token** (`CLAUDE_CODE_OAUTH_TOKEN`) — env var, then platform storage (macOS Keychain or `~/.claude/.credentials.json` on Linux)
 2. **Enterprise token** (`ANTHROPIC_AUTH_TOKEN`) — env var
 3. **API key** (`ANTHROPIC_API_KEY`) — env var
 
-Detected credentials are written to `.devcontainer/.env` and passed into the container automatically.
+```bash
+# Print detected credentials to stdout
+./scripts/detect-auth.sh
 
-### Skills
-
-**`/devcontainer-init`** — Scaffolds a `.devcontainer/` directory with Dockerfile, devcontainer.json, and an `.env` file containing your detected auth credentials. Optionally accepts `--name <container-name>`.
-
-**`/devcontainer-troubleshoot`** — Diagnoses auth and container issues. Checks host credentials, `.env` configuration, container environment, and Claude CLI availability. Run with `auth`, `container`, or `all`.
-
-See [cc-devcontainer/skills/devcontainer-init/SKILL.md](cc-devcontainer/skills/devcontainer-init/SKILL.md) and [cc-devcontainer/skills/devcontainer-troubleshoot/SKILL.md](cc-devcontainer/skills/devcontainer-troubleshoot/SKILL.md) for full details.
+# Write them to an env file
+./scripts/detect-auth.sh --env-file .env
+```
 
 ---
 
