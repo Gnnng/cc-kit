@@ -8,8 +8,8 @@ Configuration for running Claude Code with API keys instead of the default subsc
 
 - **Custom statusline** showing context usage, model, session count, directory, git info, and line changes
 - **Model preset** set to Opus
-- **No co-authored-by** in commits (`includeCoAuthoredBy: false`)
-- **Telemetry disabled** via `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
+- **No Claude attribution** in commits, PRs, or session links (`attribution` set to empty; replaces the deprecated `includeCoAuthoredBy`)
+- **Nonessential traffic disabled** — the single `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` variable covers telemetry, error reporting, the `/feedback` command, feedback surveys, and the autoupdater
 - **Onboarding bypassed** so Claude Code starts immediately
 
 ## Setup
