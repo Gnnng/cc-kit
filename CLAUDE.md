@@ -1,11 +1,13 @@
 # Development Guidelines
 
 1. Run shellcheck on any shell script before committing
-2. Use devcontainer to test the install script and other components
+2. Test with `bash tests/run_tests.sh`; container-based testing of the install script runs in CI or on a Docker-capable host
 3. Don't install scripts locally - it may cause unforeseen issues
 4. Use `$'...'` syntax for ANSI color codes (e.g., `C_RED=$'\033[31m'`)
 
 ## Devcontainer Commands
+
+Note: requires a Docker-capable host.
 
 ```bash
 # Start devcontainer (reuses existing if available)

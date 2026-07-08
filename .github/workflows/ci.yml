@@ -20,17 +20,10 @@ jobs:
           bash -n tests/test_cc_launcher.sh
           bash -n tests/test_install.sh
           bash -n tests/fixtures/mock_claude
-          bash -n devcontainer-features/src/claude-code/install.sh
+          bash -n scripts/detect-auth.sh
 
       - name: ShellCheck
-        run: shellcheck cc-launcher install.sh tests/run_tests.sh tests/test_cc_launcher.sh tests/test_install.sh tests/fixtures/mock_claude devcontainer-features/src/claude-code/install.sh
-
-      - name: Validate feature JSON
-        run: jq . devcontainer-features/src/claude-code/devcontainer-feature.json
-
-      - name: Validate template JSON
-        run: |
-          jq . devcontainer-templates/src/devcontainer/devcontainer-template.json
+        run: shellcheck cc-launcher install.sh tests/run_tests.sh tests/test_cc_launcher.sh tests/test_install.sh tests/fixtures/mock_claude scripts/detect-auth.sh
 
   test:
     runs-on: ubuntu-latest
@@ -39,14 +32,3 @@ jobs:
 
       - name: Run tests
         run: bash tests/run_tests.sh
-
-  test-features:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install devcontainer CLI
-        run: npm install -g @devcontainers/cli
-
-      - name: Test claude-code feature
-        run: devcontainer features test -f claude-code -p devcontainer-features

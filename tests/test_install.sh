@@ -92,7 +92,7 @@ test_headless_merge_preserves_symlinks() {
     mkdir -p "$volume_dir/.claude"
     echo '{"model": "sonnet", "permissions": {}, "env": {}}' > "$volume_dir/.claude/settings.json"
 
-    # Symlink HOME files to the volume (like our devcontainer feature does)
+    # Symlink HOME files to a volume-style directory to verify --merge preserves symlinks
     mkdir -p "$FAKE_HOME/.claude"
     ln -sf "$volume_dir/.claude.json" "$FAKE_HOME/.claude.json"
     ln -sf "$volume_dir/.claude/settings.json" "$FAKE_HOME/.claude/settings.json"
