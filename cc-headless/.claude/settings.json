@@ -1,6 +1,10 @@
 {
   "model": "opus",
-  "includeCoAuthoredBy": false,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {},
   "env": {
     "DISABLE_TELEMETRY": "1",
