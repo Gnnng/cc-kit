@@ -116,12 +116,6 @@ test_local_ollama() {
     assert_eq "1" "$(captured_env CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)" || return 1
 }
 
-test_local_llama_server() {
-    run_launcher llama-server || return 1
-    assert_eq "http://localhost:8080" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
-    assert_eq "local" "$(captured_env ANTHROPIC_AUTH_TOKEN)" || return 1
-}
-
 test_local_lmstudio() {
     run_launcher lmstudio || return 1
     assert_eq "http://localhost:1234" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
@@ -132,14 +126,20 @@ test_local_lm_studio_alias() {
     assert_eq "http://localhost:1234" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
 }
 
-test_local_llamabarn() {
+test_local_llama() {
+    run_launcher llama || return 1
+    assert_eq "http://localhost:8080" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
+    assert_eq "local" "$(captured_env ANTHROPIC_AUTH_TOKEN)" || return 1
+}
+
+test_local_llamabarn_alias() {
     run_launcher llamabarn || return 1
-    assert_eq "http://localhost:2276" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
+    assert_eq "http://localhost:8080" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
 }
 
 test_local_llama_barn_alias() {
     run_launcher llama-barn || return 1
-    assert_eq "http://localhost:2276" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
+    assert_eq "http://localhost:8080" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
 }
 
 test_local_with_model() {
@@ -205,9 +205,12 @@ test_provider_kimi_alias() {
 
 test_provider_moonshot_model_tiers() {
     run_launcher moonshot "key" || return 1
-    assert_eq "kimi-k2.5" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
-    assert_eq "kimi-k2-turbo-preview" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
-    assert_eq "kimi-k2-turbo-preview" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "kimi-k2.7-code" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
+    assert_eq "kimi-k2.7-code" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
+    assert_eq "kimi-k2.7-code" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "kimi-k2.7-code" "$(captured_env CLAUDE_CODE_SUBAGENT_MODEL)" || return 1
+    assert_eq "false" "$(captured_env ENABLE_TOOL_SEARCH)" || return 1
+    assert_eq "262144" "$(captured_env CLAUDE_CODE_AUTO_COMPACT_WINDOW)" || return 1
 }
 
 # --- Deepseek ---
@@ -215,20 +218,26 @@ test_provider_moonshot_model_tiers() {
 test_provider_deepseek_inline_key() {
     run_launcher deepseek "sk-deep-123" || return 1
     assert_eq "https://api.deepseek.com/anthropic" "$(captured_env ANTHROPIC_BASE_URL)" || return 1
-    assert_eq "sk-deep-123" "$(captured_env ANTHROPIC_AUTH_TOKEN)" || return 1
+    assert_eq "sk-deep-123" "$(captured_env ANTHROPIC_AUTH_TOKEN)" "deepseek uses Bearer auth like other third-party providers" || return 1
+    assert_not_set ANTHROPIC_API_KEY "no x-api-key for deepseek" || return 1
 }
 
 test_provider_deepseek_env_key() {
     export DEEPSEEK_API_KEY="env-deep-key"
     run_launcher deepseek || return 1
     assert_eq "env-deep-key" "$(captured_env ANTHROPIC_AUTH_TOKEN)" || return 1
+    assert_not_set ANTHROPIC_API_KEY "parent API key cleared for deepseek" || return 1
 }
 
 test_provider_deepseek_model_tiers() {
+    # Match DeepSeek's official Claude Code guide pins
     run_launcher deepseek "key" || return 1
-    assert_eq "deepseek-chat" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
-    assert_eq "deepseek-chat" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
-    assert_eq "deepseek-chat" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "deepseek-v4-pro[1m]" "$(captured_env ANTHROPIC_MODEL)" || return 1
+    assert_eq "deepseek-v4-pro[1m]" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
+    assert_eq "deepseek-v4-pro[1m]" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
+    assert_eq "deepseek-v4-flash" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "deepseek-v4-flash" "$(captured_env CLAUDE_CODE_SUBAGENT_MODEL)" || return 1
+    assert_eq "max" "$(captured_env CLAUDE_CODE_EFFORT_LEVEL)" || return 1
 }
 
 # --- Zhipu ---
@@ -265,9 +274,10 @@ test_provider_zhipu_env_zhipuai() {
 
 test_provider_zhipu_model_tiers() {
     run_launcher zhipu "key" || return 1
-    assert_eq "glm-5" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
-    assert_eq "glm-5" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
-    assert_eq "GLM-4.7-Flash" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "glm-5.2" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
+    assert_eq "glm-5.2" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
+    assert_eq "glm-4.7" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "3000000" "$(captured_env API_TIMEOUT_MS)" || return 1
 }
 
 # --- Minimax ---
@@ -286,9 +296,10 @@ test_provider_minimax_env_key() {
 
 test_provider_minimax_model_tiers() {
     run_launcher minimax "key" || return 1
-    assert_eq "MiniMax-M2.5" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
-    assert_eq "MiniMax-M2.5" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
-    assert_eq "MiniMax-M2.5-highspeed" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "MiniMax-M3[1m]" "$(captured_env ANTHROPIC_DEFAULT_OPUS_MODEL)" || return 1
+    assert_eq "MiniMax-M3[1m]" "$(captured_env ANTHROPIC_DEFAULT_SONNET_MODEL)" || return 1
+    assert_eq "MiniMax-M3[1m]" "$(captured_env ANTHROPIC_DEFAULT_HAIKU_MODEL)" || return 1
+    assert_eq "1000000" "$(captured_env CLAUDE_CODE_AUTO_COMPACT_WINDOW)" || return 1
 }
 
 # --- Anthropic (API mode) ---

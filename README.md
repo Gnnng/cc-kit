@@ -46,7 +46,7 @@ Multi-provider launcher for Claude Code. Switch between Anthropic subscription, 
 
 - **Single file, zero dependencies** - one bash script, download and run
 - **Multiple providers** - Anthropic, DeepSeek, Zhipu, Moonshot, MiniMax, and more
-- **Local server support** - Ollama, LM Studio, LlamaBarn, llama.cpp
+- **Local server support** - Ollama, LM Studio, Llama (llama.cpp)
 - **Custom endpoints** - any Anthropic-compatible URL
 - **Model tier mapping** - configure opus/sonnet/haiku models per provider
 - **Fully transparent** - readable bash, see exactly what happens before `exec claude`
@@ -82,8 +82,9 @@ cc-launcher ollama "qwen3:32b"   # Local Ollama with model
 |----------|-------------|
 | `ollama` | localhost:11434 |
 | `lmstudio` | localhost:1234 |
-| `llama-server` | localhost:8080 |
-| `llamabarn` | localhost:2276 |
+| `llama` | localhost:8080 |
+
+`llama` is the [Llama macOS app](https://github.com/ggml-org/Llama-macOS) (formerly LlamaBarn), the unified [`llama serve`](https://llama.app) CLI, or plain llama.cpp `llama-server` — all serve on port 8080. `llamabarn` and `llama-barn` still work as aliases (now pointing at 8080; pre-0.32 LlamaBarn on 2276 needs a custom URL).
 
 ```bash
 cc-launcher ollama "gpt-oss"              # Single model for all tiers

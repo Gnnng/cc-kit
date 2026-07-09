@@ -12,20 +12,18 @@ PROVIDERS_ANTHROPIC="https://api.anthropic.com"
 PROVIDERS_DEEPSEEK="https://api.deepseek.com/anthropic"
 PROVIDERS_ZHIPU="https://api.z.ai/api/anthropic"
 PROVIDERS_MINIMAX="https://api.minimax.io/anthropic"
-PROVIDERS_LLAMA_SERVER="http://localhost:8080"
 PROVIDERS_OLLAMA="http://localhost:11434"
 PROVIDERS_LMSTUDIO="http://localhost:1234"
-PROVIDERS_LLAMABARN="http://localhost:2276"
+PROVIDERS_LLAMA="http://localhost:8080"  # Llama app (formerly LlamaBarn), port matches llama.cpp since 0.32.0
 
-MODELS_MOONSHOT_OPUS="kimi-k2.5"
-MODELS_MOONSHOT="kimi-k2-turbo-preview"
-MODELS_ANTHROPIC="claude-sonnet-4-5"
-MODELS_DEEPSEEK="deepseek-chat"
-MODELS_DEEPSEEK_FAST="deepseek-chat"
-MODELS_ZHIPU="glm-5"
-MODELS_ZHIPU_FAST="GLM-4.7-Flash"
-MODELS_MINIMAX="MiniMax-M2.5"
-MODELS_MINIMAX_FAST="MiniMax-M2.5-highspeed"
+MODELS_MOONSHOT="kimi-k2.7-code"
+MODELS_ANTHROPIC="claude-sonnet-5"
+# Match DeepSeek's official Claude Code guide (pro[1m] for opus/sonnet, flash for haiku/subagent)
+MODELS_DEEPSEEK="deepseek-v4-pro[1m]"
+MODELS_DEEPSEEK_FAST="deepseek-v4-flash"
+MODELS_ZHIPU="glm-5.2"
+MODELS_ZHIPU_FAST="glm-4.7"
+MODELS_MINIMAX="MiniMax-M3[1m]"
 
 # Get provider URL
 get_provider_url() {
@@ -35,10 +33,9 @@ get_provider_url() {
         "deepseek") echo "$PROVIDERS_DEEPSEEK" ;;
         "zhipu") echo "$PROVIDERS_ZHIPU" ;;
         "minimax") echo "$PROVIDERS_MINIMAX" ;;
-        "llama-server") echo "$PROVIDERS_LLAMA_SERVER" ;;
         "ollama") echo "$PROVIDERS_OLLAMA" ;;
         "lmstudio") echo "$PROVIDERS_LMSTUDIO" ;;
-        "llamabarn") echo "$PROVIDERS_LLAMABARN" ;;
+        "llama") echo "$PROVIDERS_LLAMA" ;;
     esac
 }
 
@@ -50,7 +47,7 @@ get_provider_model() {
         "deepseek") echo "$MODELS_DEEPSEEK" ;;
         "zhipu") echo "$MODELS_ZHIPU" ;;
         "minimax") echo "$MODELS_MINIMAX" ;;
-        "llama-server"|"ollama"|"lmstudio"|"llamabarn") echo "" ;;
+        "ollama"|"lmstudio"|"llama") echo "" ;;
     esac
 }
 
@@ -58,7 +55,6 @@ get_provider_fast_model() {
     case $1 in
         "zhipu") echo "$MODELS_ZHIPU_FAST" ;;
         "deepseek") echo "$MODELS_DEEPSEEK_FAST" ;;
-        "minimax") echo "$MODELS_MINIMAX_FAST" ;;
         *) get_provider_model "$1" ;;
     esac
 }
@@ -145,7 +141,7 @@ get_api_key_with_fallback() {
                 return
             fi
             ;;
-        "llama-server"|"ollama"|"lmstudio"|"llamabarn")
+        "ollama"|"lmstudio"|"llama")
             echo "none"
             return
             ;;
@@ -155,8 +151,8 @@ get_api_key_with_fallback() {
     esac
 
     # If we get here and it's not a local server, prompt for key
-    if [[ "$provider" != "llama-server" ]] && [[ "$provider" != "ollama" ]] && \
-       [[ "$provider" != "lmstudio" ]] && [[ "$provider" != "llamabarn" ]]; then
+    if [[ "$provider" != "ollama" ]] && [[ "$provider" != "lmstudio" ]] && \
+       [[ "$provider" != "llama" ]]; then
         prompt_for_api_key "$provider_name"
     fi
 }
@@ -338,21 +334,21 @@ show_providers() {
 
     # Third-party providers
     printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "deepseek" "api.deepseek.com/anthropic" "$(get_key_status deepseek)"
-    echo -e "               $(fmt_model "$MODELS_DEEPSEEK")"
+    echo -e "               $(fmt_model "$MODELS_DEEPSEEK"), $(fmt_model "$MODELS_DEEPSEEK_FAST")"
 
     printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "zhipu" "api.z.ai/api/anthropic" "$(get_key_status zhipu)"
     echo -e "    ${C_DIM}(zai)${C_RESET}      $(fmt_model "$MODELS_ZHIPU"), $(fmt_model "$MODELS_ZHIPU_FAST")"
 
     printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "moonshot" "api.moonshot.ai/anthropic" "$(get_key_status moonshot)"
-    echo -e "    ${C_DIM}(kimi)${C_RESET}     $(fmt_model "$MODELS_MOONSHOT_OPUS"), $(fmt_model "$MODELS_MOONSHOT")"
+    echo -e "    ${C_DIM}(kimi)${C_RESET}     $(fmt_model "$MODELS_MOONSHOT")"
 
     printf "  ${C_CYAN}${C_BOLD}%-12s${C_RESET} ${C_DIM}%-${col2}s${C_RESET} %b\n" "minimax" "api.minimax.io/anthropic" "$(get_key_status minimax)"
-    echo -e "               $(fmt_model "$MODELS_MINIMAX"), $(fmt_model "$MODELS_MINIMAX_FAST")"
+    echo -e "               $(fmt_model "$MODELS_MINIMAX")"
 
     # Local servers
     echo -e "  ${C_DIM}── local servers [model] ──${C_RESET}"
     echo -e "  ${C_CYAN}${C_BOLD}ollama${C_RESET}       ${C_DIM}localhost:11434${C_RESET}    ${C_CYAN}${C_BOLD}lmstudio${C_RESET}     ${C_DIM}localhost:1234${C_RESET}"
-    echo -e "  ${C_CYAN}${C_BOLD}llama-server${C_RESET} ${C_DIM}localhost:8080${C_RESET}     ${C_CYAN}${C_BOLD}llamabarn${C_RESET}    ${C_DIM}localhost:2276${C_RESET}"
+    echo -e "  ${C_CYAN}${C_BOLD}llama${C_RESET}        ${C_DIM}localhost:8080${C_RESET} ${C_DIM}(Llama app / llama.cpp)${C_RESET}"
 
     # Custom URL
     echo -e "  ${C_DIM}── custom url ──${C_RESET}"
@@ -454,10 +450,9 @@ main() {
     # Check if it's a local server provider (handle separately for key/model args)
     local local_server_url=""
     case "$first_arg" in
-        "llama-server") local_server_url="$PROVIDERS_LLAMA_SERVER" ;;
         "ollama") local_server_url="$PROVIDERS_OLLAMA" ;;
         "lmstudio"|"lm-studio") local_server_url="$PROVIDERS_LMSTUDIO" ;;
-        "llamabarn"|"llama-barn") local_server_url="$PROVIDERS_LLAMABARN" ;;
+        "llama"|"llamabarn"|"llama-barn") local_server_url="$PROVIDERS_LLAMA" ;;  # llamabarn kept as legacy alias
     esac
 
     if [[ -n "$local_server_url" ]]; then
@@ -543,7 +538,7 @@ main() {
             ;;
         *)
             echo "Error: Unknown provider '$provider'" >&2
-            echo "Available: subscription (sub) api moonshot (kimi) deepseek zhipu (zai glm) minimax llama-server ollama lmstudio llamabarn" >&2
+            echo "Available: subscription (sub) api moonshot (kimi) deepseek zhipu (zai glm) minimax ollama lmstudio llama" >&2
             echo "You can also use a custom URL directly as the first argument" >&2
             exit 1
             ;;
@@ -606,30 +601,51 @@ main() {
     local base_url
     base_url="$(get_provider_url "$provider_base")"
     export ANTHROPIC_BASE_URL="$base_url"
+    # Claude Code third-party path uses Bearer (ANTHROPIC_AUTH_TOKEN), including DeepSeek's Claude Code guide
     export ANTHROPIC_AUTH_TOKEN="$api_key"
+    # Avoid Claude Code's interactive API-key approval path when a parent shell has ANTHROPIC_API_KEY set
+    if [[ "$provider_base" != "anthropic" ]]; then
+        unset ANTHROPIC_API_KEY
+    fi
 
-    # Map Claude model aliases to provider's models
+    # Map Claude model aliases to provider's models (via get_provider_model / get_provider_fast_model)
     # For alternative providers without true tiers, map all aliases to their best model
+    local model fast_model
     case "$provider_base" in
         "moonshot")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MOONSHOT_OPUS"
-            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_MOONSHOT"
-            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_MOONSHOT"
+            model="$(get_provider_model moonshot)"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
+            export CLAUDE_CODE_SUBAGENT_MODEL="$model"
+            export ENABLE_TOOL_SEARCH="false"
+            export CLAUDE_CODE_AUTO_COMPACT_WINDOW="262144"
             ;;
         "deepseek")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_DEEPSEEK"
-            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_DEEPSEEK"
-            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_DEEPSEEK"
+            # DeepSeek Claude Code guide: pro[1m] for opus/sonnet/primary, flash for haiku/subagent
+            model="$(get_provider_model deepseek)"
+            fast_model="$(get_provider_fast_model deepseek)"
+            export ANTHROPIC_MODEL="$model"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$fast_model"
+            export CLAUDE_CODE_SUBAGENT_MODEL="$fast_model"
+            export CLAUDE_CODE_EFFORT_LEVEL="max"
             ;;
         "minimax")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_MINIMAX"
-            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_MINIMAX"
-            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_MINIMAX_FAST"
+            model="$(get_provider_model minimax)"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$model"
+            export CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
             ;;
         "zhipu")
-            export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELS_ZHIPU"
-            export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELS_ZHIPU"
-            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELS_ZHIPU_FAST"
+            model="$(get_provider_model zhipu)"
+            fast_model="$(get_provider_fast_model zhipu)"
+            export ANTHROPIC_DEFAULT_OPUS_MODEL="$model"
+            export ANTHROPIC_DEFAULT_SONNET_MODEL="$model"
+            export ANTHROPIC_DEFAULT_HAIKU_MODEL="$fast_model"
+            export API_TIMEOUT_MS="3000000"
             ;;
         "anthropic")
             # For official Anthropic, let Claude Code use defaults

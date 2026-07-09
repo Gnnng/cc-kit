@@ -6,7 +6,7 @@
 
 # Capture relevant environment variables
 env \
-    | grep -E '^(ANTHROPIC_|CLAUDE_CODE_|MOONSHOT_|DEEPSEEK_|ZAI_|ZHIPUAI_|MINIMAX_)' \
+    | grep -E '^(ANTHROPIC_|CLAUDE_CODE_|MOONSHOT_|DEEPSEEK_|ZAI_|ZHIPUAI_|MINIMAX_|API_TIMEOUT_MS=|ENABLE_TOOL_SEARCH=)' \
     | sort > "$CC_TEST_CAPTURE_DIR/env" || true
 
 # Capture argument count
